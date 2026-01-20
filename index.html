@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Split Control (Inverted)</title>
+<title>Mechanical Duo – GTA Style Control</title>
 
 <style>
 body {
@@ -10,28 +10,11 @@ body {
   overflow: hidden;
   background: #000;
   touch-action: none;
-  font-family: sans-serif;
-}
-
-#interactBtn {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  width: 90px;
-  height: 90px;
-  border-radius: 50%;
-  background: #ff9800;
-  color: #000;
-  font-size: 16px;
-  border: none;
-  font-weight: bold;
 }
 </style>
 </head>
 
 <body>
-
-<button id="interactBtn">تفاعل</button>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 
@@ -64,67 +47,73 @@ document.body.appendChild(renderer.domElement);
    الإضاءة
 ========================= */
 scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-dirLight.position.set(5, 10, 5);
-scene.add(dirLight);
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(5, 10, 5);
+scene.add(light);
 
 /* =========================
-   الأرضية
+   الأرض
 ========================= */
 const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(30, 30),
+  new THREE.PlaneGeometry(40, 40),
   new THREE.MeshStandardMaterial({ color: 0x555555 })
 );
 floor.rotation.x = -Math.PI / 2;
 scene.add(floor);
 
 /* =========================
-   السيارة
+   سيارة
 ========================= */
-const carMaterial = new THREE.MeshStandardMaterial({ color: 0xaa0000 });
+const carMat = new THREE.MeshStandardMaterial({ color: 0xaa0000 });
 const car = new THREE.Mesh(
   new THREE.BoxGeometry(2, 1, 4),
-  carMaterial
+  carMat
 );
 car.position.set(0, 0.5, 0);
 scene.add(car);
 
 /* =========================
-   التحكم (يمين حركة / يسار توجيه) - معكوس
+   التحكم (GTA Style)
 ========================= */
 let rotationY = 0;
-let moveForward = false;
+let moveSpeed = 0;
 
-let lookTouchId = null;
 let moveTouchId = null;
+let lookTouchId = null;
+let startMoveY = 0;
 let lastLookX = 0;
 
 window.addEventListener("touchstart", e => {
   for (const t of e.changedTouches) {
 
-    // يسار الشاشة = توجيه
-    if (t.clientX < window.innerWidth / 2 && lookTouchId === null) {
-      lookTouchId = t.identifier;
-      lastLookX = t.clientX;
+    // نصف الشاشة الأيسر = حركة
+    if (t.clientX < window.innerWidth / 2 && moveTouchId === null) {
+      moveTouchId = t.identifier;
+      startMoveY = t.clientY;
     }
 
-    // يمين الشاشة = حركة
-    if (t.clientX >= window.innerWidth / 2 && moveTouchId === null) {
-      moveTouchId = t.identifier;
-      moveForward = true;
+    // نصف الشاشة الأيمن = توجيه
+    if (t.clientX >= window.innerWidth / 2 && lookTouchId === null) {
+      lookTouchId = t.identifier;
+      lastLookX = t.clientX;
     }
   }
 });
 
 window.addEventListener("touchmove", e => {
   for (const t of e.changedTouches) {
+
+    // الحركة للأمام (سحب للأعلى)
+    if (t.identifier === moveTouchId) {
+      const dy = startMoveY - t.clientY;
+      moveSpeed = Math.max(0, Math.min(dy * 0.002, 0.08));
+    }
+
+    // التوجيه
     if (t.identifier === lookTouchId) {
       const dx = t.clientX - lastLookX;
-
-      // 🔁 عكس اللف
-      rotationY += dx * 0.001;
+      rotationY += dx * 0.002;
       camera.rotation.y = rotationY;
-
       lastLookX = t.clientX;
     }
   }
@@ -132,27 +121,15 @@ window.addEventListener("touchmove", e => {
 
 window.addEventListener("touchend", e => {
   for (const t of e.changedTouches) {
+    if (t.identifier === moveTouchId) {
+      moveTouchId = null;
+      moveSpeed = 0;
+    }
     if (t.identifier === lookTouchId) {
       lookTouchId = null;
     }
-    if (t.identifier === moveTouchId) {
-      moveTouchId = null;
-      moveForward = false;
-    }
   }
 });
-
-/* =========================
-   زر التفاعل
-========================= */
-document.getElementById("interactBtn").onclick = () => {
-  const d = camera.position.distanceTo(car.position);
-  if (d < 3) {
-    carMaterial.color.set(0x00ff00);
-  } else {
-    alert("اقترب من السيارة");
-  }
-};
 
 /* =========================
    حلقة اللعبة
@@ -160,10 +137,9 @@ document.getElementById("interactBtn").onclick = () => {
 function animate() {
   requestAnimationFrame(animate);
 
-  if (moveForward) {
-    // 🔁 عكس اتجاه الحركة
-    camera.position.x += Math.sin(rotationY) * 0.06;
-    camera.position.z += Math.cos(rotationY) * 0.06;
+  if (moveSpeed > 0) {
+    camera.position.x += Math.sin(rotationY) * moveSpeed;
+    camera.position.z += Math.cos(rotationY) * moveSpeed;
   }
 
   renderer.render(scene, camera);
