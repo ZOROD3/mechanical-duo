@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – GTA Joystick Fixed</title>
+<title>Mechanical Duo – GTA Joystick FINAL</title>
 
 <style>
 body {
@@ -70,7 +70,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x202020);
 
 /* =========================
-   الكاميرا (تمثل اللاعب)
+   الكاميرا (اللاعب)
 ========================= */
 const camera = new THREE.PerspectiveCamera(
   75,
@@ -117,12 +117,12 @@ car.position.set(0, 0.5, 0);
 scene.add(car);
 
 /* =========================
-   Joystick Logic (مصبوط)
+   Joystick Logic (نهائي)
 ========================= */
 const joystick = document.getElementById("joystick");
 const stick = document.getElementById("stick");
 
-let joyX = 0; // يمين / يسار
+let joyX = 0; // لف
 let joyY = 0; // أمام / خلف
 let joyActive = false;
 const maxDist = 60;
@@ -201,17 +201,17 @@ document.getElementById("interact").onclick = () => {
 };
 
 /* =========================
-   حلقة اللعبة
+   حلقة اللعبة (التصحيح هنا)
 ========================= */
 function animate() {
   requestAnimationFrame(animate);
 
   if (joyActive) {
-    // أمام / خلف (مصبوط)
-    camera.position.x += Math.sin(rotationY) * (-joyY * 0.07);
-    camera.position.z += Math.cos(rotationY) * (-joyY * 0.07);
+    // ✅ أمام / خلف (مصبوط توا)
+    camera.position.x += Math.sin(rotationY) * (joyY * 0.07);
+    camera.position.z += Math.cos(rotationY) * (joyY * 0.07);
 
-    // لف اللاعب بالـJoystick
+    // لف اللاعب
     rotationY -= joyX * 0.04;
     camera.rotation.y = rotationY;
   }
