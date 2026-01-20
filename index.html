@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Third Person FINAL</title>
+<title>Mechanical Duo – Game Feel v1</title>
 
 <style>
 body {
@@ -163,48 +163,19 @@ joystick.addEventListener("touchend", () => {
 });
 
 /* =========================
-   دوران اللاعب
+   متغيرات الحركة الناعمة
 ========================= */
 let playerRotY = 0;
-
-/* =========================
-   دوران الكاميرا (يمين الشاشة)
-========================= */
-let camAngle = 0;
-let lookId = null;
-let lastX = 0;
-
-window.addEventListener("touchstart", e => {
-  for (const t of e.changedTouches) {
-    if (t.clientX > window.innerWidth / 2 && lookId === null) {
-      lookId = t.identifier;
-      lastX = t.clientX;
-    }
-  }
-});
-
-window.addEventListener("touchmove", e => {
-  for (const t of e.changedTouches) {
-    if (t.identifier === lookId) {
-      const dx = t.clientX - lastX;
-      camAngle -= dx * 0.003;
-      lastX = t.clientX;
-    }
-  }
-});
-
-window.addEventListener("touchend", e => {
-  for (const t of e.changedTouches) {
-    if (t.identifier === lookId) lookId = null;
-  }
-});
+let currentSpeed = 0;
+const maxSpeed = 0.12;
+const acceleration = 0.006;
+const friction = 0.008;
 
 /* =========================
    زر التفاعل
 ========================= */
 document.getElementById("interact").onclick = () => {
-  const d = player.position.distanceTo(car.position);
-  if (d < 2.5) {
+  if (player.position.distanceTo(car.position) < 2.5) {
     carMat.color.set(0x00ff00);
   } else {
     alert("اقترب من السيارة");
@@ -217,22 +188,29 @@ document.getElementById("interact").onclick = () => {
 function animate() {
   requestAnimationFrame(animate);
 
-  if (joyActive) {
-    // لف اللاعب
-    playerRotY -= joyX * 0.05;
-    player.rotation.y = playerRotY;
+  // دوران اللاعب
+  playerRotY -= joyX * 0.05;
+  player.rotation.y = playerRotY;
 
-    // ✅ تصحيح الاتجاه (الأمام = تقدم)
-    const speed = joyY * 0.08;
-    player.position.x += Math.sin(playerRotY) * speed;
-    player.position.z += Math.cos(playerRotY) * speed;
+  // سرعة مستهدفة
+  const targetSpeed = joyY * maxSpeed;
+
+  // تسارع / تباطؤ
+  if (Math.abs(targetSpeed) > Math.abs(currentSpeed)) {
+    currentSpeed += Math.sign(targetSpeed - currentSpeed) * acceleration;
+  } else {
+    currentSpeed *= (1 - friction);
   }
+
+  // حركة اللاعب
+  player.position.x += Math.sin(playerRotY) * currentSpeed;
+  player.position.z += Math.cos(playerRotY) * currentSpeed;
 
   // الكاميرا خلف اللاعب
   const camOffset = new THREE.Vector3(
-    Math.sin(playerRotY + camAngle) * -4,
+    Math.sin(playerRotY) * -4,
     3,
-    Math.cos(playerRotY + camAngle) * -4
+    Math.cos(playerRotY) * -4
   );
   camera.position.copy(player.position).add(camOffset);
   camera.lookAt(player.position);
