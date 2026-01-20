@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Game Feel v1</title>
+<title>Mechanical Duo – Stable Control</title>
 
 <style>
 body {
@@ -163,13 +163,41 @@ joystick.addEventListener("touchend", () => {
 });
 
 /* =========================
-   متغيرات الحركة الناعمة
+   تحكم اللاعب
 ========================= */
 let playerRotY = 0;
-let currentSpeed = 0;
-const maxSpeed = 0.12;
-const acceleration = 0.006;
-const friction = 0.008;
+const moveSpeed = 0.1;
+
+/* =========================
+   تحكم الكاميرا (يمين الشاشة)
+========================= */
+let camAngle = 0;
+let lookTouch = null;
+let lastX = 0;
+
+window.addEventListener("touchstart", e => {
+  for (const t of e.changedTouches) {
+    if (t.clientX > window.innerWidth / 2 && lookTouch === null) {
+      lookTouch = t.identifier;
+      lastX = t.clientX;
+    }
+  }
+});
+
+window.addEventListener("touchmove", e => {
+  for (const t of e.changedTouches) {
+    if (t.identifier === lookTouch) {
+      camAngle -= (t.clientX - lastX) * 0.004;
+      lastX = t.clientX;
+    }
+  }
+});
+
+window.addEventListener("touchend", e => {
+  for (const t of e.changedTouches) {
+    if (t.identifier === lookTouch) lookTouch = null;
+  }
+});
 
 /* =========================
    زر التفاعل
@@ -192,25 +220,17 @@ function animate() {
   playerRotY -= joyX * 0.05;
   player.rotation.y = playerRotY;
 
-  // سرعة مستهدفة
-  const targetSpeed = joyY * maxSpeed;
-
-  // تسارع / تباطؤ
-  if (Math.abs(targetSpeed) > Math.abs(currentSpeed)) {
-    currentSpeed += Math.sign(targetSpeed - currentSpeed) * acceleration;
-  } else {
-    currentSpeed *= (1 - friction);
+  // حركة مباشرة (بدون تزليج)
+  if (joyActive) {
+    player.position.x += Math.sin(playerRotY) * joyY * moveSpeed;
+    player.position.z += Math.cos(playerRotY) * joyY * moveSpeed;
   }
 
-  // حركة اللاعب
-  player.position.x += Math.sin(playerRotY) * currentSpeed;
-  player.position.z += Math.cos(playerRotY) * currentSpeed;
-
-  // الكاميرا خلف اللاعب
+  // الكاميرا خلف اللاعب + دوران
   const camOffset = new THREE.Vector3(
-    Math.sin(playerRotY) * -4,
+    Math.sin(playerRotY + camAngle) * -4,
     3,
-    Math.cos(playerRotY) * -4
+    Math.cos(playerRotY + camAngle) * -4
   );
   camera.position.copy(player.position).add(camOffset);
   camera.lookAt(player.position);
