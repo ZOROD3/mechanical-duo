@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Proper Mobile Control</title>
+<title>Mechanical Duo – Split Control</title>
 
 <style>
 body {
@@ -90,57 +90,50 @@ car.position.set(0, 0.5, 0);
 scene.add(car);
 
 /* =========================
-   التحكم
+   التحكم (يمين حركة / يسار توجيه)
 ========================= */
 let rotationY = 0;
-let isMovingForward = false;
+let moveForward = false;
 
 let lookTouchId = null;
 let moveTouchId = null;
 let lastLookX = 0;
 
-/* لمس الشاشة */
 window.addEventListener("touchstart", e => {
-  for (const touch of e.changedTouches) {
+  for (const t of e.changedTouches) {
     // النصف الأيسر = توجيه
-    if (touch.clientX < window.innerWidth / 2 && lookTouchId === null) {
-      lookTouchId = touch.identifier;
-      lastLookX = touch.clientX;
+    if (t.clientX < window.innerWidth / 2 && lookTouchId === null) {
+      lookTouchId = t.identifier;
+      lastLookX = t.clientX;
     }
 
-    // النصف الأيمن العلوي = حركة للأمام
-    if (
-      touch.clientX >= window.innerWidth / 2 &&
-      touch.clientY < window.innerHeight * 0.6 &&
-      moveTouchId === null
-    ) {
-      moveTouchId = touch.identifier;
-      isMovingForward = true;
+    // النصف الأيمن = حركة
+    if (t.clientX >= window.innerWidth / 2 && moveTouchId === null) {
+      moveTouchId = t.identifier;
+      moveForward = true;
     }
   }
 });
 
 window.addEventListener("touchmove", e => {
-  for (const touch of e.changedTouches) {
-    // توجيه
-    if (touch.identifier === lookTouchId) {
-      const dx = touch.clientX - lastLookX;
+  for (const t of e.changedTouches) {
+    if (t.identifier === lookTouchId) {
+      const dx = t.clientX - lastLookX;
       rotationY -= dx * 0.001;
       camera.rotation.y = rotationY;
-      lastLookX = touch.clientX;
+      lastLookX = t.clientX;
     }
   }
 });
 
 window.addEventListener("touchend", e => {
-  for (const touch of e.changedTouches) {
-    if (touch.identifier === lookTouchId) {
+  for (const t of e.changedTouches) {
+    if (t.identifier === lookTouchId) {
       lookTouchId = null;
     }
-
-    if (touch.identifier === moveTouchId) {
+    if (t.identifier === moveTouchId) {
       moveTouchId = null;
-      isMovingForward = false;
+      moveForward = false;
     }
   }
 });
@@ -149,11 +142,11 @@ window.addEventListener("touchend", e => {
    زر التفاعل
 ========================= */
 document.getElementById("interactBtn").onclick = () => {
-  const distance = camera.position.distanceTo(car.position);
-  if (distance < 3) {
+  const d = camera.position.distanceTo(car.position);
+  if (d < 3) {
     carMaterial.color.set(0x00ff00);
   } else {
-    alert("اقترب أكثر من السيارة");
+    alert("اقترب من السيارة");
   }
 };
 
@@ -163,7 +156,7 @@ document.getElementById("interactBtn").onclick = () => {
 function animate() {
   requestAnimationFrame(animate);
 
-  if (isMovingForward) {
+  if (moveForward) {
     camera.position.x -= Math.sin(rotationY) * 0.06;
     camera.position.z -= Math.cos(rotationY) * 0.06;
   }
