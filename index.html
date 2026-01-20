@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Improved Movement</title>
+<title>Mechanical Duo – Proper Mobile Control</title>
 
 <style>
 body {
@@ -93,28 +93,56 @@ scene.add(car);
    التحكم
 ========================= */
 let rotationY = 0;
-let startX = 0;
 let isMovingForward = false;
+
+let lookTouchId = null;
+let moveTouchId = null;
+let lastLookX = 0;
 
 /* لمس الشاشة */
 window.addEventListener("touchstart", e => {
-  startX = e.touches[0].clientX;
+  for (const touch of e.changedTouches) {
+    // النصف الأيسر = توجيه
+    if (touch.clientX < window.innerWidth / 2 && lookTouchId === null) {
+      lookTouchId = touch.identifier;
+      lastLookX = touch.clientX;
+    }
 
-  // يمشي فقط لو اللمس في الجزء العلوي من الشاشة
-  if (e.touches[0].clientY < window.innerHeight * 0.6) {
-    isMovingForward = true;
+    // النصف الأيمن العلوي = حركة للأمام
+    if (
+      touch.clientX >= window.innerWidth / 2 &&
+      touch.clientY < window.innerHeight * 0.6 &&
+      moveTouchId === null
+    ) {
+      moveTouchId = touch.identifier;
+      isMovingForward = true;
+    }
   }
 });
 
 window.addEventListener("touchmove", e => {
-  const dx = e.touches[0].clientX - startX;
-  rotationY -= dx * 0.001; // حساسية ممتازة
-  camera.rotation.y = rotationY;
-  startX = e.touches[0].clientX;
+  for (const touch of e.changedTouches) {
+    // توجيه
+    if (touch.identifier === lookTouchId) {
+      const dx = touch.clientX - lastLookX;
+      rotationY -= dx * 0.001;
+      camera.rotation.y = rotationY;
+      lastLookX = touch.clientX;
+    }
+  }
 });
 
-window.addEventListener("touchend", () => {
-  isMovingForward = false;
+window.addEventListener("touchend", e => {
+  for (const touch of e.changedTouches) {
+    if (touch.identifier === lookTouchId) {
+      lookTouchId = null;
+    }
+
+    if (touch.identifier === moveTouchId) {
+      moveTouchId = null;
+      isMovingForward = false;
+    }
+  }
 });
 
 /* =========================
