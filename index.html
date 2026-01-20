@@ -64,35 +64,23 @@ floor.rotation.x = -Math.PI / 2;
 scene.add(floor);
 
 /* =========================
-   جدار
-========================= */
-const wall = new THREE.Mesh(
-  new THREE.BoxGeometry(30, 5, 0.5),
-  new THREE.MeshStandardMaterial({ color: 0x444444 })
-);
-wall.position.set(0, 2.5, -15);
-scene.add(wall);
-
-/* =========================
    سيارة
 ========================= */
+const carMaterial = new THREE.MeshStandardMaterial({ color: 0xaa0000 });
 const car = new THREE.Mesh(
   new THREE.BoxGeometry(2, 1, 4),
-  new THREE.MeshStandardMaterial({ color: 0xaa0000 })
+  carMaterial
 );
 car.position.set(0, 0.5, 0);
 scene.add(car);
 
 /* =========================
-   متغيرات الحركة
+   الحركة
 ========================= */
 let moveForward = false;
 let moveBackward = false;
 let rotationY = 0;
 
-/* =========================
-   تحكم باللمس
-========================= */
 let startX = 0;
 let startY = 0;
 
@@ -122,6 +110,26 @@ window.addEventListener("touchend", () => {
 });
 
 /* =========================
+   التفاعل مع السيارة
+========================= */
+const raycaster = new THREE.Raycaster();
+const touch = new THREE.Vector2();
+
+window.addEventListener("click", () => {
+  // نحسب المسافة بين اللاعب والسيارة
+  const distance = camera.position.distanceTo(car.position);
+  if (distance > 4) return;
+
+  // نرمي شعاع من الكاميرا
+  raycaster.setFromCamera({ x: 0, y: 0 }, camera);
+  const intersects = raycaster.intersectObject(car);
+
+  if (intersects.length > 0) {
+    carMaterial.color.set(0x00aa00); // السيارة تحددت
+  }
+});
+
+/* =========================
    حلقة اللعبة
 ========================= */
 function animate() {
@@ -144,7 +152,7 @@ function animate() {
 animate();
 
 /* =========================
-   تغيير حجم الشاشة
+   تغيير الحجم
 ========================= */
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
