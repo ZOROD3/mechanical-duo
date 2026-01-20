@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – GTA Style Control</title>
+<title>Mechanical Duo – Joystick Control</title>
 
 <style>
 body {
@@ -11,10 +11,38 @@ body {
   background: #000;
   touch-action: none;
 }
+
+/* Joystick */
+#joystick {
+  position: fixed;
+  bottom: 30px;
+  left: 30px;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  border: 2px solid rgba(255,255,255,0.3);
+}
+
+#stick {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 60px;
+  height: 60px;
+  margin-left: -30px;
+  margin-top: -30px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.6);
+}
 </style>
 </head>
 
 <body>
+
+<div id="joystick">
+  <div id="stick"></div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 
@@ -64,36 +92,63 @@ scene.add(floor);
 /* =========================
    سيارة
 ========================= */
-const carMat = new THREE.MeshStandardMaterial({ color: 0xaa0000 });
 const car = new THREE.Mesh(
   new THREE.BoxGeometry(2, 1, 4),
-  carMat
+  new THREE.MeshStandardMaterial({ color: 0xaa0000 })
 );
 car.position.set(0, 0.5, 0);
 scene.add(car);
 
 /* =========================
-   التحكم (GTA Style)
+   Joystick Logic
+========================= */
+const joystick = document.getElementById("joystick");
+const stick = document.getElementById("stick");
+
+let joyActive = false;
+let joyX = 0;
+let joyY = 0;
+
+const maxDist = 50;
+
+joystick.addEventListener("touchstart", e => {
+  joyActive = true;
+});
+
+joystick.addEventListener("touchmove", e => {
+  const rect = joystick.getBoundingClientRect();
+  const touch = e.touches[0];
+
+  let x = touch.clientX - (rect.left + rect.width / 2);
+  let y = touch.clientY - (rect.top + rect.height / 2);
+
+  const dist = Math.min(Math.sqrt(x*x + y*y), maxDist);
+  const angle = Math.atan2(y, x);
+
+  joyX = Math.cos(angle) * dist / maxDist;
+  joyY = Math.sin(angle) * dist / maxDist;
+
+  stick.style.transform =
+    `translate(${joyX * maxDist}px, ${joyY * maxDist}px)`;
+});
+
+joystick.addEventListener("touchend", () => {
+  joyActive = false;
+  joyX = 0;
+  joyY = 0;
+  stick.style.transform = "translate(0,0)";
+});
+
+/* =========================
+   تدوير الكاميرا (يمين الشاشة)
 ========================= */
 let rotationY = 0;
-let moveSpeed = 0;
-
-let moveTouchId = null;
-let lookTouchId = null;
-let startMoveY = 0;
 let lastLookX = 0;
+let lookTouchId = null;
 
 window.addEventListener("touchstart", e => {
   for (const t of e.changedTouches) {
-
-    // نصف الشاشة الأيسر = حركة
-    if (t.clientX < window.innerWidth / 2 && moveTouchId === null) {
-      moveTouchId = t.identifier;
-      startMoveY = t.clientY;
-    }
-
-    // نصف الشاشة الأيمن = توجيه
-    if (t.clientX >= window.innerWidth / 2 && lookTouchId === null) {
+    if (t.clientX > window.innerWidth / 2 && lookTouchId === null) {
       lookTouchId = t.identifier;
       lastLookX = t.clientX;
     }
@@ -102,14 +157,6 @@ window.addEventListener("touchstart", e => {
 
 window.addEventListener("touchmove", e => {
   for (const t of e.changedTouches) {
-
-    // الحركة للأمام (سحب للأعلى)
-    if (t.identifier === moveTouchId) {
-      const dy = startMoveY - t.clientY;
-      moveSpeed = Math.max(0, Math.min(dy * 0.002, 0.08));
-    }
-
-    // التوجيه
     if (t.identifier === lookTouchId) {
       const dx = t.clientX - lastLookX;
       rotationY += dx * 0.002;
@@ -121,10 +168,6 @@ window.addEventListener("touchmove", e => {
 
 window.addEventListener("touchend", e => {
   for (const t of e.changedTouches) {
-    if (t.identifier === moveTouchId) {
-      moveTouchId = null;
-      moveSpeed = 0;
-    }
     if (t.identifier === lookTouchId) {
       lookTouchId = null;
     }
@@ -137,9 +180,10 @@ window.addEventListener("touchend", e => {
 function animate() {
   requestAnimationFrame(animate);
 
-  if (moveSpeed > 0) {
-    camera.position.x += Math.sin(rotationY) * moveSpeed;
-    camera.position.z += Math.cos(rotationY) * moveSpeed;
+  if (joyActive && joyY < 0) {
+    const speed = -joyY * 0.07;
+    camera.position.x += Math.sin(rotationY + joyX * 0.5) * speed;
+    camera.position.z += Math.cos(rotationY + joyX * 0.5) * speed;
   }
 
   renderer.render(scene, camera);
