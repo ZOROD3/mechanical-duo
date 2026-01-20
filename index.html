@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Split Control</title>
+<title>Mechanical Duo – Split Control (Inverted)</title>
 
 <style>
 body {
@@ -90,7 +90,7 @@ car.position.set(0, 0.5, 0);
 scene.add(car);
 
 /* =========================
-   التحكم (يمين حركة / يسار توجيه)
+   التحكم (يمين حركة / يسار توجيه) - معكوس
 ========================= */
 let rotationY = 0;
 let moveForward = false;
@@ -101,13 +101,14 @@ let lastLookX = 0;
 
 window.addEventListener("touchstart", e => {
   for (const t of e.changedTouches) {
-    // النصف الأيسر = توجيه
+
+    // يسار الشاشة = توجيه
     if (t.clientX < window.innerWidth / 2 && lookTouchId === null) {
       lookTouchId = t.identifier;
       lastLookX = t.clientX;
     }
 
-    // النصف الأيمن = حركة
+    // يمين الشاشة = حركة
     if (t.clientX >= window.innerWidth / 2 && moveTouchId === null) {
       moveTouchId = t.identifier;
       moveForward = true;
@@ -119,8 +120,11 @@ window.addEventListener("touchmove", e => {
   for (const t of e.changedTouches) {
     if (t.identifier === lookTouchId) {
       const dx = t.clientX - lastLookX;
-      rotationY -= dx * 0.001;
+
+      // 🔁 عكس اللف
+      rotationY += dx * 0.001;
       camera.rotation.y = rotationY;
+
       lastLookX = t.clientX;
     }
   }
@@ -157,8 +161,9 @@ function animate() {
   requestAnimationFrame(animate);
 
   if (moveForward) {
-    camera.position.x -= Math.sin(rotationY) * 0.06;
-    camera.position.z -= Math.cos(rotationY) * 0.06;
+    // 🔁 عكس اتجاه الحركة
+    camera.position.x += Math.sin(rotationY) * 0.06;
+    camera.position.z += Math.cos(rotationY) * 0.06;
   }
 
   renderer.render(scene, camera);
