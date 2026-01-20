@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Joystick Control</title>
+<title>Mechanical Duo – GTA Joystick Fixed</title>
 
 <style>
 body {
@@ -12,13 +12,13 @@ body {
   touch-action: none;
 }
 
-/* Joystick */
+/* ===== Joystick ===== */
 #joystick {
   position: fixed;
   bottom: 30px;
   left: 30px;
-  width: 140px;
-  height: 140px;
+  width: 150px;
+  height: 150px;
   border-radius: 50%;
   background: rgba(255,255,255,0.15);
   border: 2px solid rgba(255,255,255,0.3);
@@ -33,7 +33,21 @@ body {
   margin-left: -30px;
   margin-top: -30px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.6);
+  background: rgba(255,255,255,0.7);
+}
+
+/* ===== زر التفاعل ===== */
+#interact {
+  position: fixed;
+  bottom: 40px;
+  right: 40px;
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: #ff9800;
+  border: none;
+  font-size: 16px;
+  font-weight: bold;
 }
 </style>
 </head>
@@ -43,6 +57,8 @@ body {
 <div id="joystick">
   <div id="stick"></div>
 </div>
+
+<button id="interact">تفاعل</button>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 
@@ -54,7 +70,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x202020);
 
 /* =========================
-   الكاميرا
+   الكاميرا (تمثل اللاعب)
 ========================= */
 const camera = new THREE.PerspectiveCamera(
   75,
@@ -83,7 +99,7 @@ scene.add(light);
    الأرض
 ========================= */
 const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(40, 40),
+  new THREE.PlaneGeometry(50, 50),
   new THREE.MeshStandardMaterial({ color: 0x555555 })
 );
 floor.rotation.x = -Math.PI / 2;
@@ -92,35 +108,35 @@ scene.add(floor);
 /* =========================
    سيارة
 ========================= */
+const carMat = new THREE.MeshStandardMaterial({ color: 0xaa0000 });
 const car = new THREE.Mesh(
   new THREE.BoxGeometry(2, 1, 4),
-  new THREE.MeshStandardMaterial({ color: 0xaa0000 })
+  carMat
 );
 car.position.set(0, 0.5, 0);
 scene.add(car);
 
 /* =========================
-   Joystick Logic
+   Joystick Logic (مصبوط)
 ========================= */
 const joystick = document.getElementById("joystick");
 const stick = document.getElementById("stick");
 
+let joyX = 0; // يمين / يسار
+let joyY = 0; // أمام / خلف
 let joyActive = false;
-let joyX = 0;
-let joyY = 0;
+const maxDist = 60;
 
-const maxDist = 50;
-
-joystick.addEventListener("touchstart", e => {
+joystick.addEventListener("touchstart", () => {
   joyActive = true;
 });
 
 joystick.addEventListener("touchmove", e => {
   const rect = joystick.getBoundingClientRect();
-  const touch = e.touches[0];
+  const t = e.touches[0];
 
-  let x = touch.clientX - (rect.left + rect.width / 2);
-  let y = touch.clientY - (rect.top + rect.height / 2);
+  let x = t.clientX - (rect.left + rect.width / 2);
+  let y = t.clientY - (rect.top + rect.height / 2);
 
   const dist = Math.min(Math.sqrt(x*x + y*y), maxDist);
   const angle = Math.atan2(y, x);
@@ -140,39 +156,49 @@ joystick.addEventListener("touchend", () => {
 });
 
 /* =========================
-   تدوير الكاميرا (يمين الشاشة)
+   دوران الكاميرا (يمين الشاشة)
 ========================= */
 let rotationY = 0;
-let lastLookX = 0;
-let lookTouchId = null;
+let lookId = null;
+let lastX = 0;
 
 window.addEventListener("touchstart", e => {
   for (const t of e.changedTouches) {
-    if (t.clientX > window.innerWidth / 2 && lookTouchId === null) {
-      lookTouchId = t.identifier;
-      lastLookX = t.clientX;
+    if (t.clientX > window.innerWidth / 2 && lookId === null) {
+      lookId = t.identifier;
+      lastX = t.clientX;
     }
   }
 });
 
 window.addEventListener("touchmove", e => {
   for (const t of e.changedTouches) {
-    if (t.identifier === lookTouchId) {
-      const dx = t.clientX - lastLookX;
-      rotationY += dx * 0.002;
+    if (t.identifier === lookId) {
+      const dx = t.clientX - lastX;
+      rotationY -= dx * 0.002;
       camera.rotation.y = rotationY;
-      lastLookX = t.clientX;
+      lastX = t.clientX;
     }
   }
 });
 
 window.addEventListener("touchend", e => {
   for (const t of e.changedTouches) {
-    if (t.identifier === lookTouchId) {
-      lookTouchId = null;
-    }
+    if (t.identifier === lookId) lookId = null;
   }
 });
+
+/* =========================
+   زر التفاعل
+========================= */
+document.getElementById("interact").onclick = () => {
+  const d = camera.position.distanceTo(car.position);
+  if (d < 3) {
+    carMat.color.set(0x00ff00);
+  } else {
+    alert("اقترب من السيارة");
+  }
+};
 
 /* =========================
    حلقة اللعبة
@@ -180,10 +206,14 @@ window.addEventListener("touchend", e => {
 function animate() {
   requestAnimationFrame(animate);
 
-  if (joyActive && joyY < 0) {
-    const speed = -joyY * 0.07;
-    camera.position.x += Math.sin(rotationY + joyX * 0.5) * speed;
-    camera.position.z += Math.cos(rotationY + joyX * 0.5) * speed;
+  if (joyActive) {
+    // أمام / خلف (مصبوط)
+    camera.position.x += Math.sin(rotationY) * (-joyY * 0.07);
+    camera.position.z += Math.cos(rotationY) * (-joyY * 0.07);
+
+    // لف اللاعب بالـJoystick
+    rotationY -= joyX * 0.04;
+    camera.rotation.y = rotationY;
   }
 
   renderer.render(scene, camera);
