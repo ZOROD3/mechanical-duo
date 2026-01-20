@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Smooth Mobile Control</title>
+<title>Mechanical Duo – Improved Movement</title>
 
 <style>
 body {
@@ -90,26 +90,31 @@ car.position.set(0, 0.5, 0);
 scene.add(car);
 
 /* =========================
-   تحكم احترافي
+   التحكم
 ========================= */
 let rotationY = 0;
-let isMovingForward = false;
 let startX = 0;
+let isMovingForward = false;
 
+/* لمس الشاشة */
 window.addEventListener("touchstart", e => {
   startX = e.touches[0].clientX;
-  isMovingForward = true; // يمشي مباشرة
+
+  // يمشي فقط لو اللمس في الجزء العلوي من الشاشة
+  if (e.touches[0].clientY < window.innerHeight * 0.6) {
+    isMovingForward = true;
+  }
 });
 
 window.addEventListener("touchmove", e => {
   const dx = e.touches[0].clientX - startX;
-  rotationY -= dx * 0.002;
+  rotationY -= dx * 0.001; // حساسية ممتازة
   camera.rotation.y = rotationY;
   startX = e.touches[0].clientX;
 });
 
 window.addEventListener("touchend", () => {
-  isMovingForward = false; // يوقف
+  isMovingForward = false;
 });
 
 /* =========================
@@ -131,8 +136,8 @@ function animate() {
   requestAnimationFrame(animate);
 
   if (isMovingForward) {
-    camera.position.x -= Math.sin(rotationY) * 0.07;
-    camera.position.z -= Math.cos(rotationY) * 0.07;
+    camera.position.x -= Math.sin(rotationY) * 0.06;
+    camera.position.z -= Math.cos(rotationY) * 0.06;
   }
 
   renderer.render(scene, camera);
