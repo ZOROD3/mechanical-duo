@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Third Person Camera</title>
+<title>Mechanical Duo – Third Person Fixed</title>
 
 <style>
 body {
@@ -77,7 +77,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
 /* =========================
-   اللاعب (مجسم)
+   اللاعب
 ========================= */
 const player = new THREE.Mesh(
   new THREE.CapsuleGeometry(0.4, 1.2, 4, 8),
@@ -87,7 +87,7 @@ player.position.set(0, 1, 5);
 scene.add(player);
 
 /* =========================
-   الكاميرا (خلف اللاعب)
+   الكاميرا
 ========================= */
 const camera = new THREE.PerspectiveCamera(
   70,
@@ -168,6 +168,38 @@ joystick.addEventListener("touchend", () => {
 let playerRotY = 0;
 
 /* =========================
+   دوران الكاميرا (يمين الشاشة)
+========================= */
+let camAngle = 0;
+let lookId = null;
+let lastX = 0;
+
+window.addEventListener("touchstart", e => {
+  for (const t of e.changedTouches) {
+    if (t.clientX > window.innerWidth / 2 && lookId === null) {
+      lookId = t.identifier;
+      lastX = t.clientX;
+    }
+  }
+});
+
+window.addEventListener("touchmove", e => {
+  for (const t of e.changedTouches) {
+    if (t.identifier === lookId) {
+      const dx = t.clientX - lastX;
+      camAngle -= dx * 0.003;
+      lastX = t.clientX;
+    }
+  }
+});
+
+window.addEventListener("touchend", e => {
+  for (const t of e.changedTouches) {
+    if (t.identifier === lookId) lookId = null;
+  }
+});
+
+/* =========================
    زر التفاعل
 ========================= */
 document.getElementById("interact").onclick = () => {
@@ -190,17 +222,17 @@ function animate() {
     playerRotY -= joyX * 0.05;
     player.rotation.y = playerRotY;
 
-    // حركة أمام / خلف
-    const speed = joyY * 0.08;
+    // ✅ أمام / خلف (مصبوط)
+    const speed = -joyY * 0.08;
     player.position.x += Math.sin(playerRotY) * speed;
     player.position.z += Math.cos(playerRotY) * speed;
   }
 
-  // الكاميرا خلف اللاعب
+  // الكاميرا خلف اللاعب + دوران يدوي
   const camOffset = new THREE.Vector3(
-    Math.sin(playerRotY) * -4,
+    Math.sin(playerRotY + camAngle) * -4,
     3,
-    Math.cos(playerRotY) * -4
+    Math.cos(playerRotY + camAngle) * -4
   );
   camera.position.copy(player.position).add(camOffset);
   camera.lookAt(player.position);
