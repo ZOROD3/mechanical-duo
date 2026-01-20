@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Mobile Movement</title>
+<title>Mechanical Duo – Smooth Mobile Control</title>
 
 <style>
 body {
@@ -90,39 +90,26 @@ car.position.set(0, 0.5, 0);
 scene.add(car);
 
 /* =========================
-   التحكم باللمس
+   تحكم احترافي
 ========================= */
 let rotationY = 0;
+let isMovingForward = false;
 let startX = 0;
-let startY = 0;
-let moving = false;
 
 window.addEventListener("touchstart", e => {
   startX = e.touches[0].clientX;
-  startY = e.touches[0].clientY;
-  moving = true;
+  isMovingForward = true; // يمشي مباشرة
 });
 
 window.addEventListener("touchmove", e => {
-  if (!moving) return;
-
   const dx = e.touches[0].clientX - startX;
-  const dy = e.touches[0].clientY - startY;
-
   rotationY -= dx * 0.002;
   camera.rotation.y = rotationY;
-
-  if (dy < -20) {
-    camera.position.x -= Math.sin(rotationY) * 0.08;
-    camera.position.z -= Math.cos(rotationY) * 0.08;
-  }
-
   startX = e.touches[0].clientX;
-  startY = e.touches[0].clientY;
 });
 
 window.addEventListener("touchend", () => {
-  moving = false;
+  isMovingForward = false; // يوقف
 });
 
 /* =========================
@@ -130,20 +117,24 @@ window.addEventListener("touchend", () => {
 ========================= */
 document.getElementById("interactBtn").onclick = () => {
   const distance = camera.position.distanceTo(car.position);
-
   if (distance < 3) {
     carMaterial.color.set(0x00ff00);
-    alert("تم التفاعل مع السيارة");
   } else {
     alert("اقترب أكثر من السيارة");
   }
 };
 
 /* =========================
-   حلقة الرسم
+   حلقة اللعبة
 ========================= */
 function animate() {
   requestAnimationFrame(animate);
+
+  if (isMovingForward) {
+    camera.position.x -= Math.sin(rotationY) * 0.07;
+    camera.position.z -= Math.cos(rotationY) * 0.07;
+  }
+
   renderer.render(scene, camera);
 }
 animate();
