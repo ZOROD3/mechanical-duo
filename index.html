@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Full Stable Build</title>
+<title>Mechanical Duo – Hood System</title>
 
 <style>
 body{
@@ -11,8 +11,6 @@ body{
   background:#000;
   touch-action:none;
 }
-
-/* ===== Joystick ===== */
 #joystick{
   position:fixed;
   bottom:30px;
@@ -34,8 +32,6 @@ body{
   border-radius:50%;
   background:rgba(255,255,255,0.8);
 }
-
-/* ===== Interaction Button ===== */
 #interact{
   position:fixed;
   bottom:40px;
@@ -59,7 +55,7 @@ body{
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 
 <script>
-/* ================= Scene ================= */
+/* ===== Scene ===== */
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x202020);
 
@@ -67,10 +63,10 @@ const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth,innerHeight);
 document.body.appendChild(renderer.domElement);
 
-/* ================= Camera ================= */
+/* ===== Camera ===== */
 const camera = new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.1,1000);
 
-/* ================= Player ================= */
+/* ===== Player ===== */
 const player = new THREE.Mesh(
   new THREE.CapsuleGeometry(0.4,1.2,4,8),
   new THREE.MeshStandardMaterial({color:0x00aaff})
@@ -78,13 +74,13 @@ const player = new THREE.Mesh(
 player.position.set(0,1,6);
 scene.add(player);
 
-/* ================= Lights ================= */
+/* ===== Lights ===== */
 scene.add(new THREE.AmbientLight(0xffffff,0.5));
 const sun = new THREE.DirectionalLight(0xffffff,1);
 sun.position.set(5,10,5);
 scene.add(sun);
 
-/* ================= Ground ================= */
+/* ===== Ground ===== */
 const floor = new THREE.Mesh(
   new THREE.PlaneGeometry(60,60),
   new THREE.MeshStandardMaterial({color:0x555555})
@@ -92,103 +88,52 @@ const floor = new THREE.Mesh(
 floor.rotation.x = -Math.PI/2;
 scene.add(floor);
 
-/* ================= Car ================= */
-const carMaterial = new THREE.MeshStandardMaterial({color:0xaa0000});
-const car = new THREE.Mesh(
+/* ===== Car Body ===== */
+const carBody = new THREE.Mesh(
   new THREE.BoxGeometry(2,1,4),
-  carMaterial
+  new THREE.MeshStandardMaterial({color:0xaa0000})
 );
-car.position.set(0,0.5,0);
-scene.add(car);
+carBody.position.set(0,0.5,0);
+scene.add(carBody);
 
-/* ================= States ================= */
+/* ===== Hood (الكبوت) ===== */
+const hoodMat = new THREE.MeshStandardMaterial({color:0x880000});
+const hood = new THREE.Mesh(
+  new THREE.BoxGeometry(2,0.2,1.5),
+  hoodMat
+);
+hood.position.set(0,1.05,1);
+hood.rotation.x = 0;
+scene.add(hood);
+
+let hoodOpen = false;
+
+/* ===== States ===== */
 let repairMode = false;
 
-/* ================= Joystick ================= */
-const joystick = document.getElementById("joystick");
-const stick = document.getElementById("stick");
+/* ===== Interaction ===== */
+document.getElementById("interact").onclick=()=>{
+  const dist = player.position.distanceTo(carBody.position);
 
-let joyX=0, joyY=0, joyActive=false;
-const maxDist=55;
+  if(dist < 2.5){
+    repairMode = !repairMode;
+    player.visible = !repairMode;
+  }
 
-joystick.addEventListener("touchstart",()=> joyActive=true);
+  // فتح الكبوت فقط في وضع التصليح
+  if(repairMode){
+    hoodOpen = !hoodOpen;
+  }
+};
 
-joystick.addEventListener("touchmove",e=>{
-  const r=joystick.getBoundingClientRect();
-  const t=e.touches[0];
-  let x=t.clientX-(r.left+r.width/2);
-  let y=t.clientY-(r.top+r.height/2);
-  const d=Math.min(Math.hypot(x,y),maxDist);
-  const a=Math.atan2(y,x);
-  joyX=Math.cos(a)*d/maxDist;
-  joyY=Math.sin(a)*d/maxDist;
-  stick.style.transform=`translate(${joyX*maxDist}px,${joyY*maxDist}px)`;
-});
-
-joystick.addEventListener("touchend",()=>{
-  joyActive=false;
-  joyX=joyY=0;
-  stick.style.transform="translate(0,0)";
-});
-
-/* ================= Camera Look ================= */
+/* ===== Camera ===== */
 let camYaw=0;
 let repairYaw=0;
-let lookTouch=null;
-let lastX=0;
-
-window.addEventListener("touchstart",e=>{
-  for(const t of e.changedTouches){
-    if(t.clientX>innerWidth/2 && lookTouch===null){
-      lookTouch=t.identifier;
-      lastX=t.clientX;
-    }
-  }
-});
-
-window.addEventListener("touchmove",e=>{
-  for(const t of e.changedTouches){
-    if(t.identifier===lookTouch){
-      const delta=(t.clientX-lastX)*0.004;
-      lastX=t.clientX;
-      if(repairMode){
-        repairYaw-=delta;
-      }else{
-        camYaw-=delta;
-      }
-    }
-  }
-});
-
-window.addEventListener("touchend",e=>{
-  for(const t of e.changedTouches){
-    if(t.identifier===lookTouch){
-      lookTouch=null;
-    }
-  }
-});
-
-/* ================= Animate ================= */
-const speed=0.12;
 
 function animate(){
   requestAnimationFrame(animate);
 
-  /* player movement */
-  if(!repairMode && joyActive){
-    const forward=new THREE.Vector3(Math.sin(camYaw),0,Math.cos(camYaw));
-    const right=new THREE.Vector3(Math.sin(camYaw+Math.PI/2),0,Math.cos(camYaw+Math.PI/2));
-    const move=forward.multiplyScalar(-joyY)
-      .add(right.multiplyScalar(-joyX))
-      .multiplyScalar(speed);
-
-    player.position.add(move);
-    if(move.length()>0.001){
-      player.rotation.y=Math.atan2(move.x,move.z);
-    }
-  }
-
-  /* camera */
+  // حركة الكاميرا
   if(!repairMode){
     camera.position.set(
       player.position.x+Math.sin(camYaw)*-4,
@@ -198,34 +143,23 @@ function animate(){
     camera.lookAt(player.position);
   }else{
     camera.position.set(
-      car.position.x+Math.sin(repairYaw)*1.5,
-      car.position.y+1.6,
-      car.position.z+Math.cos(repairYaw)*1.5
+      carBody.position.x,
+      carBody.position.y+1.8,
+      carBody.position.z+2
     );
-    camera.lookAt(car.position);
+    camera.lookAt(carBody.position);
+  }
+
+  // حركة الكبوت
+  if(hoodOpen){
+    hood.rotation.x = -Math.PI/2.2;
+  }else{
+    hood.rotation.x = 0;
   }
 
   renderer.render(scene,camera);
 }
 animate();
-
-/* ================= Interaction ================= */
-document.getElementById("interact").onclick=()=>{
-  if(player.position.distanceTo(car.position)<2.5){
-    repairMode=!repairMode;
-    player.visible=!repairMode;
-    carMaterial.color.set(repairMode?0x00ff00:0xaa0000);
-  }else{
-    alert("اقترب من السيارة");
-  }
-};
-
-/* ================= Resize ================= */
-window.addEventListener("resize",()=>{
-  camera.aspect=innerWidth/innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth,innerHeight);
-});
 </script>
 
 </body>
