@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Stable Base</title>
+<title>Mechanical Duo – Stable Touch</title>
 
 <style>
 body{
@@ -103,7 +103,6 @@ const hood = new THREE.Mesh(
 hood.position.set(0,1.05,1);
 scene.add(hood);
 
-let hoodOpen=false;
 let repairMode=false;
 
 /* ===== Joystick ===== */
@@ -129,33 +128,41 @@ joy.addEventListener("touchend",()=>{
 
 /* ===== Interaction ===== */
 document.getElementById("interact").onclick=()=>{
-  const d=player.position.distanceTo(car.position);
-  if(d<2.5){
+  if(player.position.distanceTo(car.position)<2.5){
     repairMode=!repairMode;
-    hoodOpen=repairMode;
   }
 };
 
-/* ===== Camera Control ===== */
+/* ===== Touch Camera ===== */
 let camYaw=0;
-window.addEventListener("touchmove",e=>{
-  if(e.touches.length===1 && e.touches[0].clientX>innerWidth/2){
-    camYaw-=e.touches[0].movementX*0.002;
+let lastX=null;
+
+window.addEventListener("touchstart",e=>{
+  if(e.touches[0].clientX>innerWidth/2){
+    lastX=e.touches[0].clientX;
   }
+});
+
+window.addEventListener("touchmove",e=>{
+  if(lastX!==null){
+    const x=e.touches[0].clientX;
+    camYaw+=(x-lastX)*0.005;
+    lastX=x;
+  }
+});
+
+window.addEventListener("touchend",()=>{
+  lastX=null;
 });
 
 /* ===== Loop ===== */
 function animate(){
   requestAnimationFrame(animate);
 
-  // حركة اللاعب
   if(!repairMode){
     player.position.x+=moveX*Math.cos(camYaw)-moveZ*Math.sin(camYaw);
     player.position.z+=moveZ*Math.cos(camYaw)+moveX*Math.sin(camYaw);
-  }
 
-  // الكاميرا
-  if(!repairMode){
     camera.position.set(
       player.position.x+Math.sin(camYaw)*-4,
       player.position.y+3,
@@ -167,7 +174,7 @@ function animate(){
     camera.lookAt(car.position);
   }
 
-  hood.rotation.x = hoodOpen ? -Math.PI/2.2 : 0;
+  hood.rotation.x = repairMode ? -Math.PI/2.2 : 0;
 
   renderer.render(scene,camera);
 }
