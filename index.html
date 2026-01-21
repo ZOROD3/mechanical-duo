@@ -2,21 +2,23 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Stable Movement</title>
+<title>Mechanical Duo – Movement & Camera Stable</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
 <style>
-body { margin:0; overflow:hidden; background:#000; touch-action:none; }
+html,body { margin:0; padding:0; overflow:hidden; background:#000; touch-action:none; }
 #ui {
   position:fixed; inset:0; pointer-events:none;
 }
-.joystick {
+#joystick {
   position:absolute;
   left:20px; bottom:20px;
   width:140px; height:140px;
   border-radius:50%;
-  background:rgba(255,255,255,0.1);
+  background:rgba(255,255,255,0.08);
   pointer-events:auto;
 }
-.stick {
+#stick {
   position:absolute;
   left:50%; top:50%;
   width:60px; height:60px;
@@ -26,152 +28,154 @@ body { margin:0; overflow:hidden; background:#000; touch-action:none; }
 }
 #interact {
   position:absolute;
-  right:20px; bottom:60px;
+  right:20px; bottom:40px;
   padding:14px 22px;
-  background:#ffc107;
-  color:#000;
-  font-weight:bold;
+  background:#ff4444;
+  color:#fff;
   border-radius:12px;
+  font-size:18px;
   pointer-events:auto;
 }
 </style>
 </head>
-<body>
 
+<body>
 <div id="ui">
-  <div class="joystick" id="joy">
-    <div class="stick" id="stick"></div>
-  </div>
+  <div id="joystick"><div id="stick"></div></div>
   <div id="interact">تفاعل</div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 <script>
-/* ===== Scene ===== */
+/* ====== مشهد ====== */
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x202020);
 
-const camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
-camera.position.set(0,1.6,6);
+/* ====== كاميرا ====== */
+const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 1000);
 
+/* ====== ريندر ====== */
 const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth, innerHeight);
 document.body.appendChild(renderer.domElement);
 
-/* ===== Lights ===== */
+/* ====== إضاءة ====== */
 scene.add(new THREE.AmbientLight(0xffffff,0.5));
-const dl = new THREE.DirectionalLight(0xffffff,1);
-dl.position.set(5,10,5);
-scene.add(dl);
+const sun = new THREE.DirectionalLight(0xffffff,1);
+sun.position.set(5,10,5);
+scene.add(sun);
 
-/* ===== Floor ===== */
+/* ====== أرض ====== */
 const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(50,50),
+  new THREE.PlaneGeometry(200,200),
   new THREE.MeshStandardMaterial({color:0x555555})
 );
 floor.rotation.x = -Math.PI/2;
 scene.add(floor);
 
-/* ===== Player ===== */
-const player = new THREE.Object3D();
-player.position.set(0,0,5);
+/* ====== لاعب (مجسم مؤقت) ====== */
+const player = new THREE.Mesh(
+  new THREE.CapsuleGeometry(0.4,1.0,4,8),
+  new THREE.MeshStandardMaterial({color:0x00aaff})
+);
+player.position.y = 1;
 scene.add(player);
 
-/* ===== Car ===== */
-const carMat = new THREE.MeshStandardMaterial({color:0xaa0000});
+/* ====== سيارة ====== */
 const car = new THREE.Mesh(
   new THREE.BoxGeometry(2,1,4),
-  carMat
+  new THREE.MeshStandardMaterial({color:0xaa0000})
 );
-car.position.set(0,0.5,0);
+car.position.set(0,0.5,-6);
 scene.add(car);
 
-/* ===== Camera control ===== */
-let camYaw = 0, camPitch = 0;
-let touchingCam = false;
-let lastX=0,lastY=0;
-
-window.addEventListener("touchstart",e=>{
-  if(e.touches[0].clientX > innerWidth/2){
-    touchingCam = true;
-    lastX = e.touches[0].clientX;
-    lastY = e.touches[0].clientY;
-  }
-});
-window.addEventListener("touchmove",e=>{
-  if(!touchingCam) return;
-  const dx = e.touches[0].clientX-lastX;
-  const dy = e.touches[0].clientY-lastY;
-  camYaw -= dx*0.003;
-  camPitch -= dy*0.002;
-  camPitch = Math.max(-1.2,Math.min(1.2,camPitch));
-  lastX=e.touches[0].clientX;
-  lastY=e.touches[0].clientY;
-});
-window.addEventListener("touchend",()=>touchingCam=false);
-
-/* ===== Joystick ===== */
-const joy = document.getElementById("joy");
-const stick = document.getElementById("stick");
-let joyActive=false;
-let joyVec={x:0,z:0};
+/* ====== متغيرات الحركة ====== */
+let joyX=0, joyY=0;
+let moving=false;
+let yaw=0, pitch=0;
 let moveDir = new THREE.Vector3();
+const velocity = new THREE.Vector3();
 
-joy.addEventListener("touchstart",e=>{
-  joyActive=true;
-});
-joy.addEventListener("touchmove",e=>{
-  const r=70;
-  const rect=joy.getBoundingClientRect();
-  const x=e.touches[0].clientX-rect.left-r;
-  const y=e.touches[0].clientY-rect.top-r;
-  const d=Math.min(r,Math.hypot(x,y));
-  const a=Math.atan2(y,x);
-  stick.style.transform=`translate(${Math.cos(a)*d}px,${Math.sin(a)*d}px)`;
-  joyVec.x = Math.cos(a)*(d/r);
-  joyVec.z = Math.sin(a)*(d/r);
+/* ====== جويستيك ====== */
+const joy = document.getElementById("joystick");
+const stick = document.getElementById("stick");
 
-  if(joyActive){
-    moveDir.set(
-      Math.sin(camYaw)*joyVec.z + Math.cos(camYaw)*joyVec.x,
-      0,
-      Math.cos(camYaw)*joyVec.z - Math.sin(camYaw)*joyVec.x
-    ).normalize();
-  }
+joy.addEventListener("pointerdown",e=>{
+  joy.setPointerCapture(e.pointerId);
+  moving=true;
 });
-joy.addEventListener("touchend",()=>{
-  joyActive=false;
-  joyVec.x=joyVec.z=0;
-  stick.style.transform="translate(0,0)";
+joy.addEventListener("pointermove",e=>{
+  if(!moving) return;
+  const r = joy.getBoundingClientRect();
+  let x = e.clientX - (r.left+r.width/2);
+  let y = e.clientY - (r.top+r.height/2);
+  const d = Math.min(50,Math.hypot(x,y));
+  const a = Math.atan2(y,x);
+  x = Math.cos(a)*d; y = Math.sin(a)*d;
+  stick.style.transform = `translate(${x}px,${y}px)`;
+  joyX = x/50;
+  joyY = y/50;
+});
+joy.addEventListener("pointerup",()=>{
+  moving=false;
+  joyX=joyY=0;
+  stick.style.transform="";
 });
 
-/* ===== Interaction ===== */
-let repairing=false;
+/* ====== تحريك الكاميرا باللمس ====== */
+let look=false, lx=0, ly=0;
+renderer.domElement.addEventListener("pointerdown",e=>{
+  if(e.clientX < innerWidth*0.5) return;
+  look=true; lx=e.clientX; ly=e.clientY;
+});
+window.addEventListener("pointermove",e=>{
+  if(!look) return;
+  yaw -= (e.clientX-lx)*0.005;
+  pitch -= (e.clientY-ly)*0.005;
+  pitch = Math.max(-0.6,Math.min(0.4,pitch));
+  lx=e.clientX; ly=e.clientY;
+});
+window.addEventListener("pointerup",()=>look=false);
+
+/* ====== تفاعل ====== */
 document.getElementById("interact").onclick=()=>{
-  repairing=!repairing;
-  carMat.color.set(repairing?0x00ff88:0xaa0000);
+  car.material.color.set(0x00ff00);
 };
 
-/* ===== Loop ===== */
+/* ====== حلقة ====== */
 function animate(){
   requestAnimationFrame(animate);
 
-  if(!repairing && joyActive){
-    player.position.addScaledVector(moveDir,0.08);
+  /* اتجاه حركة ثابت */
+  if(moving){
+    moveDir.set(joyX,0,joyY).normalize();
+    const angle = yaw;
+    const sin = Math.sin(angle), cos = Math.cos(angle);
+    velocity.x = (moveDir.x*cos - moveDir.z*sin)*0.08;
+    velocity.z = (moveDir.x*sin + moveDir.z*cos)*0.08;
+  } else {
+    velocity.multiplyScalar(0.85);
   }
 
-  camera.position.set(
-    player.position.x + Math.sin(camYaw)*4,
-    player.position.y + 2,
-    player.position.z + Math.cos(camYaw)*4
-  );
-  camera.lookAt(player.position);
+  player.position.add(velocity);
+
+  /* تدوير اللاعب باتجاه الحركة */
+  if(velocity.length()>0.01){
+    player.rotation.y = Math.atan2(velocity.x,velocity.z);
+  }
+
+  /* كاميرا Third Person */
+  const camOffset = new THREE.Vector3(0,2,5);
+  camOffset.applyAxisAngle(new THREE.Vector3(0,1,0),yaw);
+  camera.position.copy(player.position).add(camOffset);
+  camera.lookAt(player.position.x,player.position.y+1,player.position.z);
 
   renderer.render(scene,camera);
 }
 animate();
 
-window.addEventListener("resize",()=>{
+/* ====== Resize ====== */
+addEventListener("resize",()=>{
   camera.aspect=innerWidth/innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth,innerHeight);
