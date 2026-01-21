@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Stable Control</title>
+<title>Mechanical Duo – Stable Final Control</title>
 <style>
 html,body{margin:0;padding:0;overflow:hidden;background:#000}
 #interact{
@@ -107,10 +107,12 @@ joyBase.addEventListener("touchmove",e=>{
   const t=e.touches[0];
   const dx=t.clientX-joyTouch.clientX;
   const dy=t.clientY-joyTouch.clientY;
+
   moveX=Math.max(-1,Math.min(1,dx/40));
-  moveZ=Math.max(-1,Math.min(1,-dy/40));
+  moveZ=Math.max(-1,Math.min(1,dy/40)); // ✅ صح
+
   joyStick.style.left=40+moveX*30+"px";
-  joyStick.style.top=40-moveZ*30+"px";
+  joyStick.style.top=40+moveZ*30+"px";
 });
 joyBase.addEventListener("touchend",()=>{
   moveX=moveZ=0;
@@ -119,15 +121,22 @@ joyBase.addEventListener("touchend",()=>{
   joyTouch=null;
 });
 
-// ===== كاميرا لمس =====
-window.addEventListener("touchmove",e=>{
-  if(gameState!=="walk")return;
+// ===== تحريك الكاميرا (في المشي + التصليح) =====
+let lookTouch=null;
+window.addEventListener("touchstart",e=>{
   if(e.touches[0].clientX>innerWidth/2){
-    camYaw-=e.movementX*0.002;
-    camPitch-=e.movementY*0.002;
-    camPitch=Math.max(-1.2,Math.min(1.2,camPitch));
+    lookTouch=e.touches[0];
   }
 });
+window.addEventListener("touchmove",e=>{
+  if(!lookTouch)return;
+  const t=e.touches[0];
+  camYaw-=(t.clientX-lookTouch.clientX)*0.003;
+  camPitch-=(t.clientY-lookTouch.clientY)*0.003;
+  camPitch=Math.max(-1.2,Math.min(1.2,camPitch));
+  lookTouch=t;
+});
+window.addEventListener("touchend",()=>lookTouch=null);
 
 // ===== زر =====
 const btn=document.getElementById("interact");
@@ -157,6 +166,7 @@ function animate(){
       (moveX*Math.cos(camYaw)-moveZ*Math.sin(camYaw))*speed;
     player.position.z+=
       (moveZ*Math.cos(camYaw)+moveX*Math.sin(camYaw))*speed;
+
     player.rotation.y=camYaw;
     camera.position.set(
       player.position.x,
