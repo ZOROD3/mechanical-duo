@@ -2,49 +2,51 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Final Control</title>
+<title>Mechanical Duo – Stable Control</title>
 
 <style>
-body {
-  margin: 0;
-  overflow: hidden;
-  background: #000;
-  touch-action: none;
+body{
+  margin:0;
+  overflow:hidden;
+  background:#000;
+  touch-action:none;
 }
 
-#joystick {
-  position: fixed;
-  bottom: 30px;
-  left: 30px;
-  width: 150px;
-  height: 150px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.15);
-  border: 2px solid rgba(255,255,255,0.3);
+/* ===== Joystick ===== */
+#joystick{
+  position:fixed;
+  bottom:30px;
+  left:30px;
+  width:150px;
+  height:150px;
+  border-radius:50%;
+  background:rgba(255,255,255,0.15);
+  border:2px solid rgba(255,255,255,0.3);
 }
-#stick {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 60px;
-  height: 60px;
-  margin-left: -30px;
-  margin-top: -30px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.7);
+#stick{
+  position:absolute;
+  left:50%;
+  top:50%;
+  width:60px;
+  height:60px;
+  margin-left:-30px;
+  margin-top:-30px;
+  border-radius:50%;
+  background:rgba(255,255,255,0.7);
 }
 
-#interact {
-  position: fixed;
-  bottom: 40px;
-  right: 40px;
-  width: 90px;
-  height: 90px;
-  border-radius: 50%;
-  background: #ff9800;
-  border: none;
-  font-size: 16px;
-  font-weight: bold;
+/* ===== Interaction Button ===== */
+#interact{
+  position:fixed;
+  bottom:40px;
+  right:40px;
+  width:90px;
+  height:90px;
+  border-radius:50%;
+  background:#ff9800;
+  border:none;
+  font-size:16px;
+  font-weight:bold;
 }
 </style>
 </head>
@@ -61,20 +63,20 @@ body {
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x202020);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(innerWidth, innerHeight);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
 document.body.appendChild(renderer.domElement);
 
 /* ===== Player ===== */
 const player = new THREE.Mesh(
   new THREE.CapsuleGeometry(0.4,1.2,4,8),
-  new THREE.MeshStandardMaterial({ color: 0x00aaff })
+  new THREE.MeshStandardMaterial({color:0x00aaff})
 );
 player.position.set(0,1,5);
 scene.add(player);
 
 /* ===== Camera ===== */
-const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 1000);
+const camera = new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.1,1000);
 
 /* ===== Light ===== */
 scene.add(new THREE.AmbientLight(0xffffff,0.5));
@@ -85,18 +87,21 @@ scene.add(light);
 /* ===== Ground ===== */
 const floor = new THREE.Mesh(
   new THREE.PlaneGeometry(60,60),
-  new THREE.MeshStandardMaterial({ color: 0x555555 })
+  new THREE.MeshStandardMaterial({color:0x555555})
 );
 floor.rotation.x = -Math.PI/2;
 scene.add(floor);
 
 /* ===== Car ===== */
-const carMat = new THREE.MeshStandardMaterial({ color: 0xaa0000 });
-const car = new THREE.Mesh(new THREE.BoxGeometry(2,1,4), carMat);
+const carMat = new THREE.MeshStandardMaterial({color:0xaa0000});
+const car = new THREE.Mesh(
+  new THREE.BoxGeometry(2,1,4),
+  carMat
+);
 car.position.set(0,0.5,0);
 scene.add(car);
 
-/* ===== Joystick ===== */
+/* ===== Joystick Logic ===== */
 const joystick = document.getElementById("joystick");
 const stick = document.getElementById("stick");
 
@@ -104,6 +109,7 @@ let joyX=0, joyY=0, joyActive=false;
 const maxDist=60;
 
 joystick.addEventListener("touchstart",()=>joyActive=true);
+
 joystick.addEventListener("touchmove",e=>{
   const r=joystick.getBoundingClientRect();
   const t=e.touches[0];
@@ -115,13 +121,16 @@ joystick.addEventListener("touchmove",e=>{
   joyY=Math.sin(a)*d/maxDist;
   stick.style.transform=`translate(${joyX*maxDist}px,${joyY*maxDist}px)`;
 });
+
 joystick.addEventListener("touchend",()=>{
-  joyActive=false; joyX=0; joyY=0;
+  joyActive=false;
+  joyX=0; joyY=0;
   stick.style.transform="translate(0,0)";
 });
 
 /* ===== Camera Look (Right Screen) ===== */
 let camYaw=0, lookId=null, lastX=0;
+
 window.addEventListener("touchstart",e=>{
   for(const t of e.changedTouches){
     if(t.clientX>innerWidth/2 && lookId===null){
@@ -130,6 +139,7 @@ window.addEventListener("touchstart",e=>{
     }
   }
 });
+
 window.addEventListener("touchmove",e=>{
   for(const t of e.changedTouches){
     if(t.identifier===lookId){
@@ -138,13 +148,14 @@ window.addEventListener("touchmove",e=>{
     }
   }
 });
+
 window.addEventListener("touchend",e=>{
   for(const t of e.changedTouches){
     if(t.identifier===lookId) lookId=null;
   }
 });
 
-/* ===== Movement (FIXED) ===== */
+/* ===== Movement (FINAL & FIXED) ===== */
 const speed=0.12;
 
 function animate(){
@@ -162,14 +173,14 @@ function animate(){
   );
 
   if(joyActive){
-    const move = forward.clone().multiplyScalar(-joyY) // ✅ هنا الإصلاح
-      .add(right.clone().multiplyScalar(joyX))
+    const move = forward.clone().multiplyScalar(-joyY)   // ✅ أمام / خلف
+      .add(right.clone().multiplyScalar(-joyX))         // ✅ يمين / يسار
       .multiplyScalar(speed);
 
     player.position.add(move);
 
     if(move.length()>0.001){
-      player.rotation.y = Math.atan2(move.x, move.z);
+      player.rotation.y = Math.atan2(move.x,move.z);
     }
   }
 
@@ -186,14 +197,15 @@ function animate(){
 animate();
 
 /* ===== Interaction ===== */
-document.getElementById("interact").onclick = ()=>{
+document.getElementById("interact").onclick=()=>{
   if(player.position.distanceTo(car.position)<2.5){
     carMat.color.set(0x00ff00);
-  } else {
+  }else{
     alert("اقترب من السيارة");
   }
 };
 
+/* ===== Resize ===== */
 window.addEventListener("resize",()=>{
   camera.aspect=innerWidth/innerHeight;
   camera.updateProjectionMatrix();
