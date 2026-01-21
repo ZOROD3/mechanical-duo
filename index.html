@@ -2,186 +2,180 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Stable Final Control</title>
+<title>Mechanical Duo – Stable Movement</title>
 <style>
-html,body{margin:0;padding:0;overflow:hidden;background:#000}
-#interact{
-  position:fixed;
-  bottom:20px;
-  right:20px;
-  z-index:10;
-  padding:14px 20px;
-  border:none;
-  border-radius:10px;
-  background:#ff9800;
-  font-size:16px;
+body { margin:0; overflow:hidden; background:#000; touch-action:none; }
+#ui {
+  position:fixed; inset:0; pointer-events:none;
 }
-#joyBase{
-  position:fixed;
-  bottom:30px;
-  left:30px;
-  width:120px;
-  height:120px;
-  border-radius:50%;
-  background:rgba(255,255,255,0.15);
-}
-#joyStick{
+.joystick {
   position:absolute;
-  left:40px;
-  top:40px;
-  width:40px;
-  height:40px;
+  left:20px; bottom:20px;
+  width:140px; height:140px;
   border-radius:50%;
-  background:rgba(255,255,255,0.6);
+  background:rgba(255,255,255,0.1);
+  pointer-events:auto;
+}
+.stick {
+  position:absolute;
+  left:50%; top:50%;
+  width:60px; height:60px;
+  margin:-30px;
+  border-radius:50%;
+  background:rgba(255,255,255,0.4);
+}
+#interact {
+  position:absolute;
+  right:20px; bottom:60px;
+  padding:14px 22px;
+  background:#ffc107;
+  color:#000;
+  font-weight:bold;
+  border-radius:12px;
+  pointer-events:auto;
 }
 </style>
 </head>
 <body>
 
-<div id="joyBase"><div id="joyStick"></div></div>
-<button id="interact">تفاعل</button>
+<div id="ui">
+  <div class="joystick" id="joy">
+    <div class="stick" id="stick"></div>
+  </div>
+  <div id="interact">تفاعل</div>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 <script>
-// ===== مشهد =====
-const scene=new THREE.Scene();
-scene.background=new THREE.Color(0x202020);
+/* ===== Scene ===== */
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x202020);
 
-// ===== كاميرا =====
-const camera=new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,1000);
-camera.position.set(0,2,6);
+const camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.1, 1000);
+camera.position.set(0,1.6,6);
 
-// ===== ريندر =====
-const renderer=new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(innerWidth,innerHeight);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// ===== إضاءة =====
-scene.add(new THREE.AmbientLight(0xffffff,0.4));
-const dl=new THREE.DirectionalLight(0xffffff,1);
+/* ===== Lights ===== */
+scene.add(new THREE.AmbientLight(0xffffff,0.5));
+const dl = new THREE.DirectionalLight(0xffffff,1);
 dl.position.set(5,10,5);
 scene.add(dl);
 
-// ===== أرض =====
-const floor=new THREE.Mesh(
-  new THREE.PlaneGeometry(40,40),
+/* ===== Floor ===== */
+const floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(50,50),
   new THREE.MeshStandardMaterial({color:0x555555})
 );
-floor.rotation.x=-Math.PI/2;
+floor.rotation.x = -Math.PI/2;
 scene.add(floor);
 
-// ===== لاعب =====
-const player=new THREE.Mesh(
-  new THREE.CapsuleGeometry(0.4,1.2,4,8),
-  new THREE.MeshStandardMaterial({color:0x00ffcc})
-);
-player.position.set(0,1,10);
+/* ===== Player ===== */
+const player = new THREE.Object3D();
+player.position.set(0,0,5);
 scene.add(player);
 
-// ===== سيارة =====
-const carMat=new THREE.MeshStandardMaterial({color:0xaa0000});
-const car=new THREE.Mesh(
+/* ===== Car ===== */
+const carMat = new THREE.MeshStandardMaterial({color:0xaa0000});
+const car = new THREE.Mesh(
   new THREE.BoxGeometry(2,1,4),
   carMat
 );
 car.position.set(0,0.5,0);
 scene.add(car);
 
-// ===== حالة =====
-let gameState="walk";
+/* ===== Camera control ===== */
+let camYaw = 0, camPitch = 0;
+let touchingCam = false;
+let lastX=0,lastY=0;
 
-// ===== متغيرات =====
-let camYaw=0,camPitch=0;
-let moveX=0,moveZ=0;
-let joyTouch=null;
-
-// ===== Joystick =====
-const joyBase=document.getElementById("joyBase");
-const joyStick=document.getElementById("joyStick");
-
-joyBase.addEventListener("touchstart",e=>{
-  joyTouch=e.touches[0];
-});
-joyBase.addEventListener("touchmove",e=>{
-  if(!joyTouch || gameState!=="walk")return;
-  const t=e.touches[0];
-  const dx=t.clientX-joyTouch.clientX;
-  const dy=t.clientY-joyTouch.clientY;
-
-  moveX=Math.max(-1,Math.min(1,dx/40));
-  moveZ=Math.max(-1,Math.min(1,dy/40)); // ✅ صح
-
-  joyStick.style.left=40+moveX*30+"px";
-  joyStick.style.top=40+moveZ*30+"px";
-});
-joyBase.addEventListener("touchend",()=>{
-  moveX=moveZ=0;
-  joyStick.style.left="40px";
-  joyStick.style.top="40px";
-  joyTouch=null;
-});
-
-// ===== تحريك الكاميرا (في المشي + التصليح) =====
-let lookTouch=null;
 window.addEventListener("touchstart",e=>{
-  if(e.touches[0].clientX>innerWidth/2){
-    lookTouch=e.touches[0];
+  if(e.touches[0].clientX > innerWidth/2){
+    touchingCam = true;
+    lastX = e.touches[0].clientX;
+    lastY = e.touches[0].clientY;
   }
 });
 window.addEventListener("touchmove",e=>{
-  if(!lookTouch)return;
-  const t=e.touches[0];
-  camYaw-=(t.clientX-lookTouch.clientX)*0.003;
-  camPitch-=(t.clientY-lookTouch.clientY)*0.003;
-  camPitch=Math.max(-1.2,Math.min(1.2,camPitch));
-  lookTouch=t;
+  if(!touchingCam) return;
+  const dx = e.touches[0].clientX-lastX;
+  const dy = e.touches[0].clientY-lastY;
+  camYaw -= dx*0.003;
+  camPitch -= dy*0.002;
+  camPitch = Math.max(-1.2,Math.min(1.2,camPitch));
+  lastX=e.touches[0].clientX;
+  lastY=e.touches[0].clientY;
 });
-window.addEventListener("touchend",()=>lookTouch=null);
+window.addEventListener("touchend",()=>touchingCam=false);
 
-// ===== زر =====
-const btn=document.getElementById("interact");
-btn.onclick=()=>{
-  if(gameState==="walk" && player.position.distanceTo(car.position)<3){
-    gameState="repair";
-    player.visible=false;
-    carMat.color.set(0x00ff00);
-    camera.position.set(0,1.8,2.5);
-    camPitch=-0.3;
-    btn.textContent="رجوع";
-  }else if(gameState==="repair"){
-    gameState="walk";
-    player.visible=true;
-    carMat.color.set(0xaa0000);
-    btn.textContent="تفاعل";
+/* ===== Joystick ===== */
+const joy = document.getElementById("joy");
+const stick = document.getElementById("stick");
+let joyActive=false;
+let joyVec={x:0,z:0};
+let moveDir = new THREE.Vector3();
+
+joy.addEventListener("touchstart",e=>{
+  joyActive=true;
+});
+joy.addEventListener("touchmove",e=>{
+  const r=70;
+  const rect=joy.getBoundingClientRect();
+  const x=e.touches[0].clientX-rect.left-r;
+  const y=e.touches[0].clientY-rect.top-r;
+  const d=Math.min(r,Math.hypot(x,y));
+  const a=Math.atan2(y,x);
+  stick.style.transform=`translate(${Math.cos(a)*d}px,${Math.sin(a)*d}px)`;
+  joyVec.x = Math.cos(a)*(d/r);
+  joyVec.z = Math.sin(a)*(d/r);
+
+  if(joyActive){
+    moveDir.set(
+      Math.sin(camYaw)*joyVec.z + Math.cos(camYaw)*joyVec.x,
+      0,
+      Math.cos(camYaw)*joyVec.z - Math.sin(camYaw)*joyVec.x
+    ).normalize();
   }
+});
+joy.addEventListener("touchend",()=>{
+  joyActive=false;
+  joyVec.x=joyVec.z=0;
+  stick.style.transform="translate(0,0)";
+});
+
+/* ===== Interaction ===== */
+let repairing=false;
+document.getElementById("interact").onclick=()=>{
+  repairing=!repairing;
+  carMat.color.set(repairing?0x00ff88:0xaa0000);
 };
 
-// ===== تحديث =====
+/* ===== Loop ===== */
 function animate(){
   requestAnimationFrame(animate);
 
-  if(gameState==="walk"){
-    const speed=0.08;
-    player.position.x+=
-      (moveX*Math.cos(camYaw)-moveZ*Math.sin(camYaw))*speed;
-    player.position.z+=
-      (moveZ*Math.cos(camYaw)+moveX*Math.sin(camYaw))*speed;
-
-    player.rotation.y=camYaw;
-    camera.position.set(
-      player.position.x,
-      player.position.y+1,
-      player.position.z
-    );
+  if(!repairing && joyActive){
+    player.position.addScaledVector(moveDir,0.08);
   }
 
-  camera.rotation.order="YXZ";
-  camera.rotation.y=camYaw;
-  camera.rotation.x=camPitch;
+  camera.position.set(
+    player.position.x + Math.sin(camYaw)*4,
+    player.position.y + 2,
+    player.position.z + Math.cos(camYaw)*4
+  );
+  camera.lookAt(player.position);
 
   renderer.render(scene,camera);
 }
 animate();
+
+window.addEventListener("resize",()=>{
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
 </script>
 </body>
 </html>
