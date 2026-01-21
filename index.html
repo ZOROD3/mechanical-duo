@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Stable Control</title>
+<title>Mechanical Duo – Repair Mode 1</title>
 
 <style>
 body{
@@ -101,16 +101,20 @@ const car = new THREE.Mesh(
 car.position.set(0,0.5,0);
 scene.add(car);
 
-/* ===== Joystick Logic ===== */
+/* ===== States ===== */
+let repairMode = false;
+
+/* ===== Joystick ===== */
 const joystick = document.getElementById("joystick");
 const stick = document.getElementById("stick");
 
 let joyX=0, joyY=0, joyActive=false;
 const maxDist=60;
 
-joystick.addEventListener("touchstart",()=>joyActive=true);
+joystick.addEventListener("touchstart",()=>{ if(!repairMode) joyActive=true; });
 
 joystick.addEventListener("touchmove",e=>{
+  if(repairMode) return;
   const r=joystick.getBoundingClientRect();
   const t=e.touches[0];
   let x=t.clientX-(r.left+r.width/2);
@@ -123,15 +127,15 @@ joystick.addEventListener("touchmove",e=>{
 });
 
 joystick.addEventListener("touchend",()=>{
-  joyActive=false;
-  joyX=0; joyY=0;
+  joyActive=false; joyX=0; joyY=0;
   stick.style.transform="translate(0,0)";
 });
 
-/* ===== Camera Look (Right Screen) ===== */
+/* ===== Camera Look ===== */
 let camYaw=0, lookId=null, lastX=0;
 
 window.addEventListener("touchstart",e=>{
+  if(repairMode) return;
   for(const t of e.changedTouches){
     if(t.clientX>innerWidth/2 && lookId===null){
       lookId=t.identifier;
@@ -141,6 +145,7 @@ window.addEventListener("touchstart",e=>{
 });
 
 window.addEventListener("touchmove",e=>{
+  if(repairMode) return;
   for(const t of e.changedTouches){
     if(t.identifier===lookId){
       camYaw -= (t.clientX-lastX)*0.004;
@@ -155,42 +160,40 @@ window.addEventListener("touchend",e=>{
   }
 });
 
-/* ===== Movement (FINAL & FIXED) ===== */
+/* ===== Movement ===== */
 const speed=0.12;
 
 function animate(){
   requestAnimationFrame(animate);
 
-  const forward = new THREE.Vector3(
-    Math.sin(camYaw),
-    0,
-    Math.cos(camYaw)
-  );
-  const right = new THREE.Vector3(
-    Math.sin(camYaw + Math.PI/2),
-    0,
-    Math.cos(camYaw + Math.PI/2)
-  );
+  if(!repairMode && joyActive){
+    const forward = new THREE.Vector3(Math.sin(camYaw),0,Math.cos(camYaw));
+    const right = new THREE.Vector3(Math.sin(camYaw+Math.PI/2),0,Math.cos(camYaw+Math.PI/2));
 
-  if(joyActive){
-    const move = forward.clone().multiplyScalar(-joyY)   // ✅ أمام / خلف
-      .add(right.clone().multiplyScalar(-joyX))         // ✅ يمين / يسار
+    const move = forward.clone().multiplyScalar(-joyY)
+      .add(right.clone().multiplyScalar(-joyX))
       .multiplyScalar(speed);
 
     player.position.add(move);
-
     if(move.length()>0.001){
       player.rotation.y = Math.atan2(move.x,move.z);
     }
   }
 
-  const camOffset = new THREE.Vector3(
-    Math.sin(camYaw)*-4,
-    3,
-    Math.cos(camYaw)*-4
-  );
-  camera.position.copy(player.position).add(camOffset);
-  camera.lookAt(player.position);
+  /* Camera */
+  if(!repairMode){
+    const offset = new THREE.Vector3(Math.sin(camYaw)*-4,3,Math.cos(camYaw)*-4);
+    camera.position.copy(player.position).add(offset);
+    camera.lookAt(player.position);
+  }else{
+    // وضع التصليح
+    camera.position.set(
+      car.position.x,
+      car.position.y+1.2,
+      car.position.z+2.5
+    );
+    camera.lookAt(car.position);
+  }
 
   renderer.render(scene,camera);
 }
@@ -198,8 +201,18 @@ animate();
 
 /* ===== Interaction ===== */
 document.getElementById("interact").onclick=()=>{
-  if(player.position.distanceTo(car.position)<2.5){
-    carMat.color.set(0x00ff00);
+  const dist = player.position.distanceTo(car.position);
+  if(dist<2.5){
+    repairMode = !repairMode;
+
+    if(repairMode){
+      joyActive=false;
+      joystick.style.opacity="0.3";
+      carMat.color.set(0x00ff00);
+    }else{
+      joystick.style.opacity="1";
+      carMat.color.set(0xaa0000);
+    }
   }else{
     alert("اقترب من السيارة");
   }
