@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Stable Base</title>
+<title>Mechanical Duo – GTA Control</title>
 
 <style>
 body {
@@ -12,6 +12,7 @@ body {
   touch-action: none;
 }
 
+/* ===== Joystick ===== */
 #joystick {
   position: fixed;
   bottom: 30px;
@@ -35,6 +36,7 @@ body {
   background: rgba(255,255,255,0.7);
 }
 
+/* ===== زر التفاعل ===== */
 #interact {
   position: fixed;
   bottom: 40px;
@@ -58,7 +60,7 @@ body {
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 
 <script>
-/* ===== المشهد ===== */
+/* ===== Scene ===== */
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x202020);
 
@@ -66,7 +68,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(innerWidth, innerHeight);
 document.body.appendChild(renderer.domElement);
 
-/* ===== اللاعب ===== */
+/* ===== Player ===== */
 const player = new THREE.Mesh(
   new THREE.CapsuleGeometry(0.4,1.2,4,8),
   new THREE.MeshStandardMaterial({ color: 0x00aaff })
@@ -74,16 +76,16 @@ const player = new THREE.Mesh(
 player.position.set(0,1,5);
 scene.add(player);
 
-/* ===== الكاميرا ===== */
+/* ===== Camera ===== */
 const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.1, 1000);
 
-/* ===== الإضاءة ===== */
+/* ===== Light ===== */
 scene.add(new THREE.AmbientLight(0xffffff,0.5));
-const d = new THREE.DirectionalLight(0xffffff,1);
-d.position.set(5,10,5);
-scene.add(d);
+const light = new THREE.DirectionalLight(0xffffff,1);
+light.position.set(5,10,5);
+scene.add(light);
 
-/* ===== الأرض ===== */
+/* ===== Ground ===== */
 const floor = new THREE.Mesh(
   new THREE.PlaneGeometry(60,60),
   new THREE.MeshStandardMaterial({ color: 0x555555 })
@@ -91,17 +93,16 @@ const floor = new THREE.Mesh(
 floor.rotation.x = -Math.PI/2;
 scene.add(floor);
 
-/* ===== سيارة ===== */
-const car = new THREE.Mesh(
-  new THREE.BoxGeometry(2,1,4),
-  new THREE.MeshStandardMaterial({ color: 0xaa0000 })
-);
+/* ===== Car ===== */
+const carMat = new THREE.MeshStandardMaterial({ color: 0xaa0000 });
+const car = new THREE.Mesh(new THREE.BoxGeometry(2,1,4), carMat);
 car.position.set(0,0.5,0);
 scene.add(car);
 
 /* ===== Joystick ===== */
 const joystick = document.getElementById("joystick");
 const stick = document.getElementById("stick");
+
 let joyX=0, joyY=0, joyActive=false;
 const maxDist=60;
 
@@ -122,16 +123,13 @@ joystick.addEventListener("touchend",()=>{
   stick.style.transform="translate(0,0)";
 });
 
-/* ===== دوران اللاعب ===== */
-let playerRot=0;
-const moveSpeed=0.1;
-
-/* ===== دوران الكاميرا ===== */
+/* ===== Camera Look (Right Screen) ===== */
 let camYaw=0, lookId=null, lastX=0;
 window.addEventListener("touchstart",e=>{
   for(const t of e.changedTouches){
     if(t.clientX>innerWidth/2 && lookId===null){
-      lookId=t.identifier; lastX=t.clientX;
+      lookId=t.identifier;
+      lastX=t.clientX;
     }
   }
 });
@@ -149,25 +147,42 @@ window.addEventListener("touchend",e=>{
   }
 });
 
-/* ===== حلقة اللعبة ===== */
+/* ===== Movement ===== */
+const speed=0.12;
+
 function animate(){
   requestAnimationFrame(animate);
 
-  // لف اللاعب بالـ joystick فقط
-  playerRot -= joyX * 0.05;
-  player.rotation.y = playerRot;
+  // اتجاه الحركة حسب الكاميرا
+  const forward = new THREE.Vector3(
+    Math.sin(camYaw),
+    0,
+    Math.cos(camYaw)
+  );
+  const right = new THREE.Vector3(
+    Math.sin(camYaw + Math.PI/2),
+    0,
+    Math.cos(camYaw + Math.PI/2)
+  );
 
-  // حركة مستقيمة وثابتة
   if(joyActive){
-    player.position.x += Math.sin(playerRot) * joyY * moveSpeed;
-    player.position.z += Math.cos(playerRot) * joyY * moveSpeed;
+    const move = forward.clone().multiplyScalar(joyY)
+      .add(right.clone().multiplyScalar(joyX))
+      .multiplyScalar(speed);
+
+    player.position.add(move);
+
+    // لف اللاعب باتجاه الحركة
+    if(move.length()>0.001){
+      player.rotation.y = Math.atan2(move.x, move.z);
+    }
   }
 
-  // الكاميرا تتبع فقط
+  // الكاميرا تتبع
   const camOffset = new THREE.Vector3(
-    Math.sin(playerRot + camYaw) * -4,
+    Math.sin(camYaw)*-4,
     3,
-    Math.cos(playerRot + camYaw) * -4
+    Math.cos(camYaw)*-4
   );
   camera.position.copy(player.position).add(camOffset);
   camera.lookAt(player.position);
@@ -175,6 +190,15 @@ function animate(){
   renderer.render(scene,camera);
 }
 animate();
+
+/* ===== Interaction ===== */
+document.getElementById("interact").onclick = ()=>{
+  if(player.position.distanceTo(car.position)<2.5){
+    carMat.color.set(0x00ff00);
+  } else {
+    alert("اقترب من السيارة");
+  }
+};
 
 window.addEventListener("resize",()=>{
   camera.aspect=innerWidth/innerHeight;
