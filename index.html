@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Repair Mode FIXED</title>
+<title>Mechanical Duo – Controls Fixed</title>
 
 <style>
 body{
@@ -11,12 +11,14 @@ body{
   background:#000;
   touch-action:none;
 }
+
+/* joystick */
 #joystick{
   position:fixed;
   bottom:30px;
   left:30px;
-  width:150px;
-  height:150px;
+  width:140px;
+  height:140px;
   border-radius:50%;
   background:rgba(255,255,255,0.15);
   border:2px solid rgba(255,255,255,0.3);
@@ -25,32 +27,22 @@ body{
   position:absolute;
   left:50%;
   top:50%;
-  width:60px;
-  height:60px;
-  margin:-30px;
+  width:55px;
+  height:55px;
+  margin-left:-27.5px;
+  margin-top:-27.5px;
   border-radius:50%;
-  background:rgba(255,255,255,0.7);
-}
-#interact{
-  position:fixed;
-  bottom:40px;
-  right:40px;
-  width:90px;
-  height:90px;
-  border-radius:50%;
-  background:#ff9800;
-  border:none;
-  font-size:16px;
-  font-weight:bold;
+  background:rgba(255,255,255,0.8);
 }
 </style>
 </head>
 
 <body>
+
 <div id="joystick"><div id="stick"></div></div>
-<button id="interact">تفاعل</button>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+
 <script>
 /* ===== Scene ===== */
 const scene = new THREE.Scene();
@@ -71,115 +63,127 @@ const player = new THREE.Mesh(
 player.position.set(0,1,5);
 scene.add(player);
 
-/* ===== Light ===== */
-scene.add(new THREE.AmbientLight(0xffffff,0.6));
+/* ===== Lights ===== */
+scene.add(new THREE.AmbientLight(0xffffff,0.5));
 const sun = new THREE.DirectionalLight(0xffffff,1);
 sun.position.set(5,10,5);
 scene.add(sun);
 
 /* ===== Ground ===== */
 const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(50,50),
+  new THREE.PlaneGeometry(60,60),
   new THREE.MeshStandardMaterial({color:0x555555})
 );
 floor.rotation.x = -Math.PI/2;
 scene.add(floor);
 
-/* ===== Car ===== */
-const carMat = new THREE.MeshStandardMaterial({color:0xaa0000});
-const car = new THREE.Mesh(
-  new THREE.BoxGeometry(2,1,4),
-  carMat
-);
-car.position.set(0,0.5,0);
-scene.add(car);
-
-/* ===== States ===== */
-let repairMode = false;
-
-/* ===== Camera Look ===== */
+/* ===== Variables ===== */
 let camYaw = 0;
-let camPitch = -0.3;
-let lookId = null;
-let lastX = 0;
-let lastY = 0;
+let joyX = 0, joyY = 0;
+let joyActive = false;
 
-/* ===== Touch Look ===== */
+/* ===== Joystick (LEFT SIDE) ===== */
+const joystick = document.getElementById("joystick");
+const stick = document.getElementById("stick");
+const maxDist = 55;
+
+joystick.addEventListener("touchstart",e=>{
+  joyActive = true;
+});
+
+joystick.addEventListener("touchmove",e=>{
+  const r = joystick.getBoundingClientRect();
+  const t = e.touches[0];
+
+  let x = t.clientX - (r.left + r.width/2);
+  let y = t.clientY - (r.top  + r.height/2);
+
+  const d = Math.min(Math.hypot(x,y), maxDist);
+  const a = Math.atan2(y,x);
+
+  joyX = Math.cos(a) * (d/maxDist);
+  joyY = Math.sin(a) * (d/maxDist);
+
+  stick.style.transform = `translate(${joyX*maxDist}px,${joyY*maxDist}px)`;
+});
+
+joystick.addEventListener("touchend",()=>{
+  joyActive = false;
+  joyX = joyY = 0;
+  stick.style.transform = "translate(0,0)";
+});
+
+/* ===== Camera Look (RIGHT SIDE) ===== */
+let lookTouch = null;
+let lastX = 0;
+
 window.addEventListener("touchstart",e=>{
   for(const t of e.changedTouches){
-    if(t.clientX > innerWidth/2 && lookId === null){
-      lookId = t.identifier;
+    if(t.clientX > innerWidth/2 && lookTouch === null){
+      lookTouch = t.identifier;
       lastX = t.clientX;
-      lastY = t.clientY;
     }
   }
 });
 
 window.addEventListener("touchmove",e=>{
   for(const t of e.changedTouches){
-    if(t.identifier === lookId){
-      camYaw   -= (t.clientX - lastX) * 0.004;
-      camPitch -= (t.clientY - lastY) * 0.004;
-      camPitch = Math.max(-1.2, Math.min(0.2, camPitch));
+    if(t.identifier === lookTouch){
+      camYaw -= (t.clientX - lastX) * 0.004;
       lastX = t.clientX;
-      lastY = t.clientY;
     }
   }
 });
 
 window.addEventListener("touchend",e=>{
   for(const t of e.changedTouches){
-    if(t.identifier === lookId) lookId = null;
+    if(t.identifier === lookTouch){
+      lookTouch = null;
+    }
   }
 });
 
 /* ===== Animate ===== */
+const speed = 0.12;
+
 function animate(){
   requestAnimationFrame(animate);
 
-  if(repairMode){
-    // 🔧 وضع التصليح (كاميرا فقط)
-    const dir = new THREE.Vector3(
-      Math.sin(camYaw)*Math.cos(camPitch),
-      Math.sin(camPitch),
-      Math.cos(camYaw)*Math.cos(camPitch)
-    );
-    camera.position.set(
-      car.position.x,
-      car.position.y + 1.6,
-      car.position.z + 1.8
-    );
-    camera.lookAt(camera.position.clone().add(dir));
-  }else{
-    // 🎮 لعب عادي (كاميرا ثابتة خلف اللاعب)
-    camera.position.set(
-      player.position.x,
-      player.position.y + 3,
-      player.position.z + 6
-    );
-    camera.lookAt(player.position);
+  /* movement */
+  if(joyActive){
+    const forward = new THREE.Vector3(Math.sin(camYaw),0,Math.cos(camYaw));
+    const right   = new THREE.Vector3(Math.sin(camYaw+Math.PI/2),0,Math.cos(camYaw+Math.PI/2));
+
+    const move = forward.multiplyScalar(-joyY)
+      .add(right.multiplyScalar(-joyX))
+      .multiplyScalar(speed);
+
+    player.position.add(move);
+
+    if(move.length()>0.001){
+      player.rotation.y = Math.atan2(move.x,move.z);
+    }
   }
+
+  /* camera follow */
+  camera.position.set(
+    player.position.x + Math.sin(camYaw)*-4,
+    player.position.y + 3,
+    player.position.z + Math.cos(camYaw)*-4
+  );
+  camera.lookAt(player.position);
 
   renderer.render(scene,camera);
 }
 animate();
 
-/* ===== Interaction ===== */
-document.getElementById("interact").onclick = ()=>{
-  if(player.position.distanceTo(car.position) < 2.5){
-    repairMode = !repairMode;
-    player.visible = !repairMode;
-    carMat.color.set(repairMode ? 0x00ff00 : 0xaa0000);
-  }else{
-    alert("اقترب من السيارة");
-  }
-};
-
+/* ===== Resize ===== */
 window.addEventListener("resize",()=>{
   camera.aspect = innerWidth/innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth,innerHeight);
 });
 </script>
+
 </body>
 </html>
