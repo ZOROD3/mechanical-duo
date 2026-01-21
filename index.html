@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Repair Base</title>
+<title>Mechanical Duo – Fixed Controls</title>
 
 <style>
 body{
@@ -120,9 +120,8 @@ joy.addEventListener("touchmove",e=>{
   const a=Math.atan2(y,x);
   stick.style.transform=`translate(${Math.cos(a)*d}px,${Math.sin(a)*d}px)`;
 
-  // تصحيح الاتجاه (الإحساس الطبيعي)
   moveX =  Math.cos(a)*0.08;
-  moveZ = -Math.sin(a)*0.08;
+  moveZ =  Math.sin(a)*0.08; // ✔️ تصحيح الأمام/الخلف
 });
 
 joy.addEventListener("touchend",()=>{
@@ -134,8 +133,6 @@ joy.addEventListener("touchend",()=>{
 document.getElementById("interact").onclick=()=>{
   if(player.position.distanceTo(car.position)<2.5){
     repairMode=!repairMode;
-
-    // تغيير لون السيارة كدليل بصري
     carMat.color.set(repairMode ? 0x00ff00 : 0xaa0000);
   }
 };
@@ -152,7 +149,7 @@ window.addEventListener("touchstart",e=>{
 window.addEventListener("touchmove",e=>{
   if(lastX!==null){
     const x=e.touches[0].clientX;
-    camYaw+=(x-lastX)*0.005;
+    camYaw -= (x-lastX)*0.005; // ✔️ تصحيح الكاميرا
     lastX=x;
   }
 });
@@ -173,7 +170,6 @@ function animate(){
     );
     camera.lookAt(player.position);
   }else{
-    // كاميرا تصليح واضحة
     camera.position.set(
       car.position.x,
       car.position.y+2,
