@@ -2,207 +2,140 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Stable Core</title>
-
+<title>Mechanical Duo – Repair Mode Base</title>
 <style>
-body{
-  margin:0;
-  overflow:hidden;
-  background:#000;
-  touch-action:none;
-}
-#joystick{
+html,body{margin:0;padding:0;overflow:hidden;background:#000}
+#ui{
   position:fixed;
-  bottom:30px;
-  left:30px;
-  width:140px;
-  height:140px;
-  border-radius:50%;
-  background:rgba(255,255,255,0.15);
+  bottom:20px;
+  right:20px;
+  z-index:10;
 }
-#stick{
-  position:absolute;
-  left:50%;
-  top:50%;
-  width:55px;
-  height:55px;
-  margin-left:-27.5px;
-  margin-top:-27.5px;
-  border-radius:50%;
-  background:#fff;
-}
-#interact{
-  position:fixed;
-  bottom:40px;
-  right:40px;
-  width:90px;
-  height:90px;
-  border-radius:50%;
-  background:#ff9800;
-  border:none;
+button{
+  padding:14px 20px;
   font-size:16px;
+  border:none;
+  border-radius:10px;
+  background:#ff9800;
+  color:#000;
 }
 </style>
 </head>
 
 <body>
 
-<div id="joystick"><div id="stick"></div></div>
-<button id="interact">تفاعل</button>
+<div id="ui">
+  <button id="interactBtn">تفاعل</button>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 
 <script>
-/* ===== المشهد ===== */
+// ================== المشهد ==================
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x202020);
 
-/* ===== الريندر ===== */
+// ================== الكاميرا ==================
+const camera = new THREE.PerspectiveCamera(75,innerWidth/innerHeight,0.1,1000);
+camera.position.set(0,2,6);
+
+// ================== الريندر ==================
 const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth,innerHeight);
 document.body.appendChild(renderer.domElement);
 
-/* ===== الكاميرا ===== */
-const camera = new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.1,1000);
+// ================== إضاءة ==================
+scene.add(new THREE.AmbientLight(0xffffff,0.4));
+const d=new THREE.DirectionalLight(0xffffff,1);
+d.position.set(5,10,5);
+scene.add(d);
 
-/* ===== اللاعب ===== */
-const player = new THREE.Mesh(
-  new THREE.CapsuleGeometry(0.4,1.2),
-  new THREE.MeshStandardMaterial({color:0x00aaff})
-);
-player.position.set(0,1,6);
-scene.add(player);
-
-/* ===== الإضاءة ===== */
-scene.add(new THREE.AmbientLight(0xffffff,0.5));
-const sun = new THREE.DirectionalLight(0xffffff,1);
-sun.position.set(5,10,5);
-scene.add(sun);
-
-/* ===== الأرض ===== */
-const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(60,60),
+// ================== الأرض ==================
+const floor=new THREE.Mesh(
+  new THREE.PlaneGeometry(30,30),
   new THREE.MeshStandardMaterial({color:0x555555})
 );
-floor.rotation.x = -Math.PI/2;
+floor.rotation.x=-Math.PI/2;
 scene.add(floor);
 
-/* ===== السيارة ===== */
-const carMat = new THREE.MeshStandardMaterial({color:0xaa0000});
-const car = new THREE.Mesh(
+// ================== اللاعب ==================
+const player=new THREE.Mesh(
+  new THREE.CapsuleGeometry(0.4,1.2,4,8),
+  new THREE.MeshStandardMaterial({color:0x00ffcc})
+);
+player.position.y=1;
+scene.add(player);
+
+// ================== السيارة ==================
+const car=new THREE.Mesh(
   new THREE.BoxGeometry(2,1,4),
-  carMat
+  new THREE.MeshStandardMaterial({color:0xaa0000})
 );
 car.position.set(0,0.5,0);
 scene.add(car);
 
-/* ===== الكبوت ===== */
-const hood = new THREE.Mesh(
-  new THREE.BoxGeometry(2,0.2,1.5),
-  new THREE.MeshStandardMaterial({color:0x880000})
-);
-hood.position.set(0,1.05,1);
-scene.add(hood);
+// ================== حالة اللعبة ==================
+let gameState="walk";
 
-let repairMode=false;
+// ================== متغيرات الحركة ==================
+let camYaw=0,camPitch=0;
+let moveForward=0,moveSide=0;
 
-/* ===== Joystick ===== */
-let moveX=0, moveZ=0;
-const joy=document.getElementById("joystick");
-const stick=document.getElementById("stick");
-
-joy.addEventListener("touchmove",e=>{
-  const t=e.touches[0];
-  const r=joy.getBoundingClientRect();
-  const x=t.clientX-(r.left+r.width/2);
-  const y=t.clientY-(r.top+r.height/2);
-  const d=Math.min(50,Math.hypot(x,y));
-  const a=Math.atan2(y,x);
-  stick.style.transform=`translate(${Math.cos(a)*d}px,${Math.sin(a)*d}px)`;
-
-  // حركة طبيعية (GTA)
-  moveX = -Math.cos(a)*0.08;
-  moveZ = -Math.sin(a)*0.08;
-});
-
-joy.addEventListener("touchend",()=>{
-  stick.style.transform="translate(0,0)";
-  moveX=moveZ=0;
-});
-
-/* ===== زر التفاعل ===== */
-document.getElementById("interact").onclick=()=>{
-  if(player.position.distanceTo(car.position)<2.5){
-    repairMode=!repairMode;
-    carMat.color.set(repairMode ? 0x00ff00 : 0xaa0000);
+// ================== لمس الشاشة ==================
+let lookTouch=null;
+window.addEventListener("touchstart",e=>{
+  if(e.touches[0].clientX>innerWidth/2){
+    lookTouch=e.touches[0];
   }
+});
+window.addEventListener("touchmove",e=>{
+  if(!lookTouch || gameState!=="walk")return;
+  const t=e.touches[0];
+  camYaw-= (t.clientX-lookTouch.clientX)*0.003;
+  camPitch-= (t.clientY-lookTouch.clientY)*0.003;
+  camPitch=Math.max(-1.2,Math.min(1.2,camPitch));
+  lookTouch=t;
+});
+window.addEventListener("touchend",()=>lookTouch=null);
+
+// ================== زر التفاعل ==================
+document.getElementById("interactBtn").onclick=()=>{
+  if(gameState!=="walk")return;
+  gameState="repair";
+
+  // إخفاء اللاعب
+  player.visible=false;
+
+  // نقل الكاميرا للمحرك
+  camera.position.set(0,1.8,2.5);
+  camYaw=0;
+  camPitch=-0.3;
 };
 
-/* ===== الكاميرا باللمس (إصبع مستقل) ===== */
-let camYaw=0;
-let moveYaw=0; // اتجاه الحركة الثابت
-let camTouchId=null;
-let lastX=0;
-
-window.addEventListener("touchstart",e=>{
-  for(const t of e.changedTouches){
-    if(t.clientX > innerWidth/2 && camTouchId===null){
-      camTouchId = t.identifier;
-      lastX = t.clientX;
-    }
-  }
-});
-
-window.addEventListener("touchmove",e=>{
-  for(const t of e.changedTouches){
-    if(t.identifier === camTouchId){
-      camYaw -= (t.clientX - lastX)*0.005;
-      lastX = t.clientX;
-    }
-  }
-});
-
-window.addEventListener("touchend",e=>{
-  for(const t of e.changedTouches){
-    if(t.identifier === camTouchId){
-      camTouchId = null;
-    }
-  }
-});
-
-/* ===== الحلقة الرئيسية ===== */
+// ================== التحديث ==================
 function animate(){
   requestAnimationFrame(animate);
 
-  // تثبيت اتجاه الحركة (حل انقلاب الاتجاه)
-  if(Math.abs(moveX)>0.001 || Math.abs(moveZ)>0.001){
-    moveYaw = camYaw;
+  if(gameState==="walk"){
+    player.rotation.y=camYaw;
+    camera.position.x=player.position.x;
+    camera.position.z=player.position.z;
+    camera.position.y=player.position.y+1;
   }
 
-  if(!repairMode){
-    player.position.x += moveX*Math.cos(moveYaw)-moveZ*Math.sin(moveYaw);
-    player.position.z += moveZ*Math.cos(moveYaw)+moveX*Math.sin(moveYaw);
+  camera.rotation.order="YXZ";
+  camera.rotation.y=camYaw;
+  camera.rotation.x=camPitch;
 
-    camera.position.set(
-      player.position.x + Math.sin(camYaw)*-4,
-      player.position.y + 3,
-      player.position.z + Math.cos(camYaw)*-4
-    );
-    camera.lookAt(player.position);
-  }else{
-    camera.position.set(
-      car.position.x,
-      car.position.y+2,
-      car.position.z+3
-    );
-    camera.lookAt(car.position);
-  }
-
-  hood.rotation.x = repairMode ? -Math.PI/2.2 : 0;
   renderer.render(scene,camera);
 }
 animate();
-</script>
 
+window.onresize=()=>{
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+};
+</script>
 </body>
 </html>
