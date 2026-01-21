@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – GTA Control</title>
+<title>Mechanical Duo – Final Control</title>
 
 <style>
 body {
@@ -12,7 +12,6 @@ body {
   touch-action: none;
 }
 
-/* ===== Joystick ===== */
 #joystick {
   position: fixed;
   bottom: 30px;
@@ -23,7 +22,6 @@ body {
   background: rgba(255,255,255,0.15);
   border: 2px solid rgba(255,255,255,0.3);
 }
-
 #stick {
   position: absolute;
   left: 50%;
@@ -36,7 +34,6 @@ body {
   background: rgba(255,255,255,0.7);
 }
 
-/* ===== زر التفاعل ===== */
 #interact {
   position: fixed;
   bottom: 40px;
@@ -147,13 +144,12 @@ window.addEventListener("touchend",e=>{
   }
 });
 
-/* ===== Movement ===== */
+/* ===== Movement (FIXED) ===== */
 const speed=0.12;
 
 function animate(){
   requestAnimationFrame(animate);
 
-  // اتجاه الحركة حسب الكاميرا
   const forward = new THREE.Vector3(
     Math.sin(camYaw),
     0,
@@ -166,19 +162,17 @@ function animate(){
   );
 
   if(joyActive){
-    const move = forward.clone().multiplyScalar(joyY)
+    const move = forward.clone().multiplyScalar(-joyY) // ✅ هنا الإصلاح
       .add(right.clone().multiplyScalar(joyX))
       .multiplyScalar(speed);
 
     player.position.add(move);
 
-    // لف اللاعب باتجاه الحركة
     if(move.length()>0.001){
       player.rotation.y = Math.atan2(move.x, move.z);
     }
   }
 
-  // الكاميرا تتبع
   const camOffset = new THREE.Vector3(
     Math.sin(camYaw)*-4,
     3,
