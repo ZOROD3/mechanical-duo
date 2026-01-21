@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Stable Repair Base</title>
+<title>Mechanical Duo – Walk + Repair Stable</title>
 <style>
 html,body{margin:0;padding:0;overflow:hidden;background:#000}
 #ui{
@@ -61,7 +61,7 @@ const player=new THREE.Mesh(
   new THREE.CapsuleGeometry(0.4,1.2,4,8),
   new THREE.MeshStandardMaterial({color:0x00ffcc})
 );
-player.position.set(0,1,8); // بعيد عن السيارة
+player.position.set(0,1,8);
 scene.add(player);
 
 // ================== سيارة ==================
@@ -76,42 +76,63 @@ scene.add(car);
 // ================== حالة اللعبة ==================
 let gameState="walk";
 
-// ================== تحكم الكاميرا ==================
+// ================== متغيرات الكاميرا ==================
 let camYaw=0,camPitch=0;
+
+// ================== متغيرات الحركة ==================
+let moveX=0,moveZ=0;
+let moveYaw=0;
+
+// ================== لمس الشاشة ==================
 let lookTouch=null;
+let moveTouch=null;
 
 window.addEventListener("touchstart",e=>{
-  if(e.touches[0].clientX>innerWidth/2){
-    lookTouch=e.touches[0];
+  const t=e.touches[0];
+  if(t.clientX<innerWidth/2){
+    moveTouch=t;
+  }else{
+    lookTouch=t;
   }
 });
+
 window.addEventListener("touchmove",e=>{
-  if(!lookTouch)return;
   const t=e.touches[0];
-  camYaw-= (t.clientX-lookTouch.clientX)*0.003;
-  camPitch-= (t.clientY-lookTouch.clientY)*0.003;
-  camPitch=Math.max(-1.2,Math.min(1.2,camPitch));
-  lookTouch=t;
+
+  // حركة اللاعب (يسار الشاشة)
+  if(moveTouch && gameState==="walk"){
+    moveX=(t.clientX-moveTouch.clientX)/80;
+    moveZ=(moveTouch.clientY-t.clientY)/80;
+    moveX=Math.max(-1,Math.min(1,moveX));
+    moveZ=Math.max(-1,Math.min(1,moveZ));
+    moveYaw=camYaw;
+  }
+
+  // حركة الكاميرا (يمين الشاشة)
+  if(lookTouch){
+    camYaw-=(t.clientX-lookTouch.clientX)*0.003;
+    camPitch-=(t.clientY-lookTouch.clientY)*0.003;
+    camPitch=Math.max(-1.2,Math.min(1.2,camPitch));
+    lookTouch=t;
+  }
 });
-window.addEventListener("touchend",()=>lookTouch=null);
+
+window.addEventListener("touchend",()=>{
+  moveTouch=null;
+  lookTouch=null;
+  moveX=0;
+  moveZ=0;
+});
 
 // ================== زر التفاعل ==================
 document.getElementById("interactBtn").onclick=()=>{
   if(gameState!=="walk")return;
-
-  // فحص المسافة
-  const dist=player.position.distanceTo(car.position);
-  if(dist>3)return;
+  if(player.position.distanceTo(car.position)>3)return;
 
   gameState="repair";
-
-  // إخفاء اللاعب
   player.visible=false;
-
-  // تغيير لون السيارة
   carMat.color.set(0x00ff00);
 
-  // نقل الكاميرا
   camera.position.set(0,1.8,2.5);
   camYaw=0;
   camPitch=-0.3;
@@ -122,7 +143,12 @@ function animate(){
   requestAnimationFrame(animate);
 
   if(gameState==="walk"){
-    player.rotation.y=camYaw;
+    const speed=0.08;
+    player.position.x+= (moveX*Math.cos(moveYaw)-moveZ*Math.sin(moveYaw))*speed;
+    player.position.z+= (moveZ*Math.cos(moveYaw)+moveX*Math.sin(moveYaw))*speed;
+
+    player.rotation.y=moveYaw;
+
     camera.position.set(
       player.position.x,
       player.position.y+1,
