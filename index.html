@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Controls Fixed</title>
+<title>Mechanical Duo – Stable Build</title>
 
 <style>
 body{
@@ -12,7 +12,7 @@ body{
   touch-action:none;
 }
 
-/* joystick */
+/* ===== Joystick ===== */
 #joystick{
   position:fixed;
   bottom:30px;
@@ -34,17 +34,32 @@ body{
   border-radius:50%;
   background:rgba(255,255,255,0.8);
 }
+
+/* ===== Interaction Button ===== */
+#interact{
+  position:fixed;
+  bottom:40px;
+  right:40px;
+  width:90px;
+  height:90px;
+  border-radius:50%;
+  background:#ff9800;
+  border:none;
+  font-size:16px;
+  font-weight:bold;
+}
 </style>
 </head>
 
 <body>
 
 <div id="joystick"><div id="stick"></div></div>
+<button id="interact">تفاعل</button>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 
 <script>
-/* ===== Scene ===== */
+/* ================= Scene ================= */
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x202020);
 
@@ -52,24 +67,24 @@ const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth,innerHeight);
 document.body.appendChild(renderer.domElement);
 
-/* ===== Camera ===== */
+/* ================= Camera ================= */
 const camera = new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.1,1000);
 
-/* ===== Player ===== */
+/* ================= Player ================= */
 const player = new THREE.Mesh(
   new THREE.CapsuleGeometry(0.4,1.2,4,8),
   new THREE.MeshStandardMaterial({color:0x00aaff})
 );
-player.position.set(0,1,5);
+player.position.set(0,1,6);
 scene.add(player);
 
-/* ===== Lights ===== */
+/* ================= Lights ================= */
 scene.add(new THREE.AmbientLight(0xffffff,0.5));
 const sun = new THREE.DirectionalLight(0xffffff,1);
 sun.position.set(5,10,5);
 scene.add(sun);
 
-/* ===== Ground ===== */
+/* ================= Ground ================= */
 const floor = new THREE.Mesh(
   new THREE.PlaneGeometry(60,60),
   new THREE.MeshStandardMaterial({color:0x555555})
@@ -77,109 +92,131 @@ const floor = new THREE.Mesh(
 floor.rotation.x = -Math.PI/2;
 scene.add(floor);
 
-/* ===== Variables ===== */
-let camYaw = 0;
-let joyX = 0, joyY = 0;
-let joyActive = false;
+/* ================= Car ================= */
+const carMaterial = new THREE.MeshStandardMaterial({color:0xaa0000});
+const car = new THREE.Mesh(
+  new THREE.BoxGeometry(2,1,4),
+  carMaterial
+);
+car.position.set(0,0.5,0);
+scene.add(car);
 
-/* ===== Joystick (LEFT SIDE) ===== */
+/* ================= States ================= */
+let repairMode = false;
+
+/* ================= Joystick ================= */
 const joystick = document.getElementById("joystick");
 const stick = document.getElementById("stick");
-const maxDist = 55;
 
-joystick.addEventListener("touchstart",e=>{
-  joyActive = true;
+let joyX=0, joyY=0, joyActive=false;
+const maxDist=55;
+
+joystick.addEventListener("touchstart",()=>{
+  joyActive=true;
 });
 
 joystick.addEventListener("touchmove",e=>{
-  const r = joystick.getBoundingClientRect();
-  const t = e.touches[0];
-
-  let x = t.clientX - (r.left + r.width/2);
-  let y = t.clientY - (r.top  + r.height/2);
-
-  const d = Math.min(Math.hypot(x,y), maxDist);
-  const a = Math.atan2(y,x);
-
-  joyX = Math.cos(a) * (d/maxDist);
-  joyY = Math.sin(a) * (d/maxDist);
-
-  stick.style.transform = `translate(${joyX*maxDist}px,${joyY*maxDist}px)`;
+  const r=joystick.getBoundingClientRect();
+  const t=e.touches[0];
+  let x=t.clientX-(r.left+r.width/2);
+  let y=t.clientY-(r.top+r.height/2);
+  const d=Math.min(Math.hypot(x,y),maxDist);
+  const a=Math.atan2(y,x);
+  joyX=Math.cos(a)*d/maxDist;
+  joyY=Math.sin(a)*d/maxDist;
+  stick.style.transform=`translate(${joyX*maxDist}px,${joyY*maxDist}px)`;
 });
 
 joystick.addEventListener("touchend",()=>{
-  joyActive = false;
-  joyX = joyY = 0;
-  stick.style.transform = "translate(0,0)";
+  joyActive=false;
+  joyX=joyY=0;
+  stick.style.transform="translate(0,0)";
 });
 
-/* ===== Camera Look (RIGHT SIDE) ===== */
-let lookTouch = null;
-let lastX = 0;
+/* ================= Camera Look ================= */
+let camYaw=0;
+let lookTouch=null;
+let lastX=0;
 
 window.addEventListener("touchstart",e=>{
   for(const t of e.changedTouches){
-    if(t.clientX > innerWidth/2 && lookTouch === null){
-      lookTouch = t.identifier;
-      lastX = t.clientX;
+    if(t.clientX>innerWidth/2 && lookTouch===null){
+      lookTouch=t.identifier;
+      lastX=t.clientX;
     }
   }
 });
 
 window.addEventListener("touchmove",e=>{
   for(const t of e.changedTouches){
-    if(t.identifier === lookTouch){
-      camYaw -= (t.clientX - lastX) * 0.004;
-      lastX = t.clientX;
+    if(t.identifier===lookTouch){
+      camYaw-=(t.clientX-lastX)*0.004;
+      lastX=t.clientX;
     }
   }
 });
 
 window.addEventListener("touchend",e=>{
   for(const t of e.changedTouches){
-    if(t.identifier === lookTouch){
-      lookTouch = null;
+    if(t.identifier===lookTouch){
+      lookTouch=null;
     }
   }
 });
 
-/* ===== Animate ===== */
-const speed = 0.12;
+/* ================= Animate ================= */
+const speed=0.12;
 
 function animate(){
   requestAnimationFrame(animate);
 
-  /* movement */
-  if(joyActive){
-    const forward = new THREE.Vector3(Math.sin(camYaw),0,Math.cos(camYaw));
-    const right   = new THREE.Vector3(Math.sin(camYaw+Math.PI/2),0,Math.cos(camYaw+Math.PI/2));
-
-    const move = forward.multiplyScalar(-joyY)
+  if(!repairMode && joyActive){
+    const forward=new THREE.Vector3(Math.sin(camYaw),0,Math.cos(camYaw));
+    const right=new THREE.Vector3(Math.sin(camYaw+Math.PI/2),0,Math.cos(camYaw+Math.PI/2));
+    const move=forward.multiplyScalar(-joyY)
       .add(right.multiplyScalar(-joyX))
       .multiplyScalar(speed);
 
     player.position.add(move);
-
     if(move.length()>0.001){
-      player.rotation.y = Math.atan2(move.x,move.z);
+      player.rotation.y=Math.atan2(move.x,move.z);
     }
   }
 
-  /* camera follow */
-  camera.position.set(
-    player.position.x + Math.sin(camYaw)*-4,
-    player.position.y + 3,
-    player.position.z + Math.cos(camYaw)*-4
-  );
-  camera.lookAt(player.position);
+  if(!repairMode){
+    camera.position.set(
+      player.position.x+Math.sin(camYaw)*-4,
+      player.position.y+3,
+      player.position.z+Math.cos(camYaw)*-4
+    );
+    camera.lookAt(player.position);
+  }else{
+    camera.position.set(
+      car.position.x,
+      car.position.y+1.6,
+      car.position.z+2
+    );
+    camera.lookAt(car.position);
+  }
 
   renderer.render(scene,camera);
 }
 animate();
 
-/* ===== Resize ===== */
+/* ================= Interaction ================= */
+document.getElementById("interact").onclick=()=>{
+  if(player.position.distanceTo(car.position)<2.5){
+    repairMode=!repairMode;
+    player.visible=!repairMode;
+    carMaterial.color.set(repairMode?0x00ff00:0xaa0000);
+  }else{
+    alert("اقترب من السيارة");
+  }
+};
+
+/* ================= Resize ================= */
 window.addEventListener("resize",()=>{
-  camera.aspect = innerWidth/innerHeight;
+  camera.aspect=innerWidth/innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth,innerHeight);
 });
