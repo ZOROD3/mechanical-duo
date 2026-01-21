@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Stable Build</title>
+<title>Mechanical Duo – Full Stable Build</title>
 
 <style>
 body{
@@ -111,9 +111,7 @@ const stick = document.getElementById("stick");
 let joyX=0, joyY=0, joyActive=false;
 const maxDist=55;
 
-joystick.addEventListener("touchstart",()=>{
-  joyActive=true;
-});
+joystick.addEventListener("touchstart",()=> joyActive=true);
 
 joystick.addEventListener("touchmove",e=>{
   const r=joystick.getBoundingClientRect();
@@ -135,6 +133,7 @@ joystick.addEventListener("touchend",()=>{
 
 /* ================= Camera Look ================= */
 let camYaw=0;
+let repairYaw=0;
 let lookTouch=null;
 let lastX=0;
 
@@ -150,8 +149,13 @@ window.addEventListener("touchstart",e=>{
 window.addEventListener("touchmove",e=>{
   for(const t of e.changedTouches){
     if(t.identifier===lookTouch){
-      camYaw-=(t.clientX-lastX)*0.004;
+      const delta=(t.clientX-lastX)*0.004;
       lastX=t.clientX;
+      if(repairMode){
+        repairYaw-=delta;
+      }else{
+        camYaw-=delta;
+      }
     }
   }
 });
@@ -170,6 +174,7 @@ const speed=0.12;
 function animate(){
   requestAnimationFrame(animate);
 
+  /* player movement */
   if(!repairMode && joyActive){
     const forward=new THREE.Vector3(Math.sin(camYaw),0,Math.cos(camYaw));
     const right=new THREE.Vector3(Math.sin(camYaw+Math.PI/2),0,Math.cos(camYaw+Math.PI/2));
@@ -183,6 +188,7 @@ function animate(){
     }
   }
 
+  /* camera */
   if(!repairMode){
     camera.position.set(
       player.position.x+Math.sin(camYaw)*-4,
@@ -192,9 +198,9 @@ function animate(){
     camera.lookAt(player.position);
   }else{
     camera.position.set(
-      car.position.x,
+      car.position.x+Math.sin(repairYaw)*1.5,
       car.position.y+1.6,
-      car.position.z+2
+      car.position.z+Math.cos(repairYaw)*1.5
     );
     camera.lookAt(car.position);
   }
