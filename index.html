@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Dual Touch Control</title>
+<title>Mechanical Duo – Stable Core</title>
 
 <style>
 body{
@@ -53,17 +53,19 @@ body{
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 
 <script>
-/* ===== Scene ===== */
+/* ===== المشهد ===== */
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x202020);
 
+/* ===== الريندر ===== */
 const renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth,innerHeight);
 document.body.appendChild(renderer.domElement);
 
+/* ===== الكاميرا ===== */
 const camera = new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.1,1000);
 
-/* ===== Player ===== */
+/* ===== اللاعب ===== */
 const player = new THREE.Mesh(
   new THREE.CapsuleGeometry(0.4,1.2),
   new THREE.MeshStandardMaterial({color:0x00aaff})
@@ -71,13 +73,13 @@ const player = new THREE.Mesh(
 player.position.set(0,1,6);
 scene.add(player);
 
-/* ===== Lights ===== */
+/* ===== الإضاءة ===== */
 scene.add(new THREE.AmbientLight(0xffffff,0.5));
 const sun = new THREE.DirectionalLight(0xffffff,1);
 sun.position.set(5,10,5);
 scene.add(sun);
 
-/* ===== Ground ===== */
+/* ===== الأرض ===== */
 const floor = new THREE.Mesh(
   new THREE.PlaneGeometry(60,60),
   new THREE.MeshStandardMaterial({color:0x555555})
@@ -85,7 +87,7 @@ const floor = new THREE.Mesh(
 floor.rotation.x = -Math.PI/2;
 scene.add(floor);
 
-/* ===== Car ===== */
+/* ===== السيارة ===== */
 const carMat = new THREE.MeshStandardMaterial({color:0xaa0000});
 const car = new THREE.Mesh(
   new THREE.BoxGeometry(2,1,4),
@@ -94,7 +96,7 @@ const car = new THREE.Mesh(
 car.position.set(0,0.5,0);
 scene.add(car);
 
-/* ===== Hood ===== */
+/* ===== الكبوت ===== */
 const hood = new THREE.Mesh(
   new THREE.BoxGeometry(2,0.2,1.5),
   new THREE.MeshStandardMaterial({color:0x880000})
@@ -118,6 +120,7 @@ joy.addEventListener("touchmove",e=>{
   const a=Math.atan2(y,x);
   stick.style.transform=`translate(${Math.cos(a)*d}px,${Math.sin(a)*d}px)`;
 
+  // حركة طبيعية (GTA)
   moveX = -Math.cos(a)*0.08;
   moveZ = -Math.sin(a)*0.08;
 });
@@ -127,7 +130,7 @@ joy.addEventListener("touchend",()=>{
   moveX=moveZ=0;
 });
 
-/* ===== Interaction ===== */
+/* ===== زر التفاعل ===== */
 document.getElementById("interact").onclick=()=>{
   if(player.position.distanceTo(car.position)<2.5){
     repairMode=!repairMode;
@@ -135,8 +138,9 @@ document.getElementById("interact").onclick=()=>{
   }
 };
 
-/* ===== Camera Touch (إصبع مستقل) ===== */
+/* ===== الكاميرا باللمس (إصبع مستقل) ===== */
 let camYaw=0;
+let moveYaw=0; // اتجاه الحركة الثابت
 let camTouchId=null;
 let lastX=0;
 
@@ -166,13 +170,18 @@ window.addEventListener("touchend",e=>{
   }
 });
 
-/* ===== Loop ===== */
+/* ===== الحلقة الرئيسية ===== */
 function animate(){
   requestAnimationFrame(animate);
 
+  // تثبيت اتجاه الحركة (حل انقلاب الاتجاه)
+  if(Math.abs(moveX)>0.001 || Math.abs(moveZ)>0.001){
+    moveYaw = camYaw;
+  }
+
   if(!repairMode){
-    player.position.x += moveX*Math.cos(camYaw)-moveZ*Math.sin(camYaw);
-    player.position.z += moveZ*Math.cos(camYaw)+moveX*Math.sin(camYaw);
+    player.position.x += moveX*Math.cos(moveYaw)-moveZ*Math.sin(moveYaw);
+    player.position.z += moveZ*Math.cos(moveYaw)+moveX*Math.sin(moveYaw);
 
     camera.position.set(
       player.position.x + Math.sin(camYaw)*-4,
