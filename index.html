@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Repair Mode 1</title>
+<title>Mechanical Duo – First Person Repair</title>
 
 <style>
 body{
@@ -79,7 +79,7 @@ scene.add(player);
 const camera = new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.1,1000);
 
 /* ===== Light ===== */
-scene.add(new THREE.AmbientLight(0xffffff,0.5));
+scene.add(new THREE.AmbientLight(0xffffff,0.6));
 const light = new THREE.DirectionalLight(0xffffff,1);
 light.position.set(5,10,5);
 scene.add(light);
@@ -108,91 +108,75 @@ let repairMode = false;
 const joystick = document.getElementById("joystick");
 const stick = document.getElementById("stick");
 
-let joyX=0, joyY=0, joyActive=false;
-const maxDist=60;
-
-joystick.addEventListener("touchstart",()=>{ if(!repairMode) joyActive=true; });
-
-joystick.addEventListener("touchmove",e=>{
-  if(repairMode) return;
-  const r=joystick.getBoundingClientRect();
-  const t=e.touches[0];
-  let x=t.clientX-(r.left+r.width/2);
-  let y=t.clientY-(r.top+r.height/2);
-  const d=Math.min(Math.hypot(x,y),maxDist);
-  const a=Math.atan2(y,x);
-  joyX=Math.cos(a)*d/maxDist;
-  joyY=Math.sin(a)*d/maxDist;
-  stick.style.transform=`translate(${joyX*maxDist}px,${joyY*maxDist}px)`;
-});
-
-joystick.addEventListener("touchend",()=>{
-  joyActive=false; joyX=0; joyY=0;
-  stick.style.transform="translate(0,0)";
-});
-
 /* ===== Camera Look ===== */
-let camYaw=0, lookId=null, lastX=0;
+let camYaw = 0;
+let camPitch = -0.3; // نظرة خفيفة للأسفل
+let lookId = null;
+let lastX = 0;
+let lastY = 0;
 
+/* ===== Touch Look ===== */
 window.addEventListener("touchstart",e=>{
-  if(repairMode) return;
+  if(!repairMode) return;
   for(const t of e.changedTouches){
-    if(t.clientX>innerWidth/2 && lookId===null){
-      lookId=t.identifier;
-      lastX=t.clientX;
+    if(t.clientX > innerWidth/2 && lookId === null){
+      lookId = t.identifier;
+      lastX = t.clientX;
+      lastY = t.clientY;
     }
   }
 });
 
 window.addEventListener("touchmove",e=>{
-  if(repairMode) return;
+  if(!repairMode) return;
   for(const t of e.changedTouches){
-    if(t.identifier===lookId){
-      camYaw -= (t.clientX-lastX)*0.004;
-      lastX=t.clientX;
+    if(t.identifier === lookId){
+      camYaw   -= (t.clientX - lastX) * 0.004;
+      camPitch -= (t.clientY - lastY) * 0.004;
+
+      camPitch = Math.max(-1.2, Math.min(0.2, camPitch)); // حدود النظر
+
+      lastX = t.clientX;
+      lastY = t.clientY;
     }
   }
 });
 
 window.addEventListener("touchend",e=>{
   for(const t of e.changedTouches){
-    if(t.identifier===lookId) lookId=null;
+    if(t.identifier === lookId) lookId = null;
   }
 });
 
-/* ===== Movement ===== */
-const speed=0.12;
-
+/* ===== Animate ===== */
 function animate(){
   requestAnimationFrame(animate);
 
-  if(!repairMode && joyActive){
-    const forward = new THREE.Vector3(Math.sin(camYaw),0,Math.cos(camYaw));
-    const right = new THREE.Vector3(Math.sin(camYaw+Math.PI/2),0,Math.cos(camYaw+Math.PI/2));
-
-    const move = forward.clone().multiplyScalar(-joyY)
-      .add(right.clone().multiplyScalar(-joyX))
-      .multiplyScalar(speed);
-
-    player.position.add(move);
-    if(move.length()>0.001){
-      player.rotation.y = Math.atan2(move.x,move.z);
-    }
-  }
-
-  /* Camera */
   if(!repairMode){
-    const offset = new THREE.Vector3(Math.sin(camYaw)*-4,3,Math.cos(camYaw)*-4);
-    camera.position.copy(player.position).add(offset);
+    // لعب عادي (ثابت)
+    camera.position.set(
+      player.position.x,
+      player.position.y + 3,
+      player.position.z + 6
+    );
     camera.lookAt(player.position);
   }else{
-    // وضع التصليح
+    // منظور التصليح الواقعي
+    const lookDir = new THREE.Vector3(
+      Math.sin(camYaw) * Math.cos(camPitch),
+      Math.sin(camPitch),
+      Math.cos(camYaw) * Math.cos(camPitch)
+    );
+
     camera.position.set(
       car.position.x,
-      car.position.y+1.2,
-      car.position.z+2.5
+      car.position.y + 1.6,
+      car.position.z + 1.8
     );
-    camera.lookAt(car.position);
+
+    camera.lookAt(
+      camera.position.clone().add(lookDir)
+    );
   }
 
   renderer.render(scene,camera);
@@ -200,17 +184,18 @@ function animate(){
 animate();
 
 /* ===== Interaction ===== */
-document.getElementById("interact").onclick=()=>{
+document.getElementById("interact").onclick = ()=>{
   const dist = player.position.distanceTo(car.position);
-  if(dist<2.5){
+  if(dist < 2.5){
     repairMode = !repairMode;
 
     if(repairMode){
-      joyActive=false;
-      joystick.style.opacity="0.3";
+      player.visible = false;      // 👤 إخفاء اللاعب
+      joystick.style.opacity = "0.3";
       carMat.color.set(0x00ff00);
     }else{
-      joystick.style.opacity="1";
+      player.visible = true;
+      joystick.style.opacity = "1";
       carMat.color.set(0xaa0000);
     }
   }else{
@@ -220,7 +205,7 @@ document.getElementById("interact").onclick=()=>{
 
 /* ===== Resize ===== */
 window.addEventListener("resize",()=>{
-  camera.aspect=innerWidth/innerHeight;
+  camera.aspect = innerWidth/innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth,innerHeight);
 });
