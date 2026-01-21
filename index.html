@@ -2,7 +2,7 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>Mechanical Duo – Stable Touch</title>
+<title>Mechanical Duo – Repair Base</title>
 
 <style>
 body{
@@ -88,9 +88,10 @@ floor.rotation.x = -Math.PI/2;
 scene.add(floor);
 
 /* ===== Car ===== */
+const carMat = new THREE.MeshStandardMaterial({color:0xaa0000});
 const car = new THREE.Mesh(
   new THREE.BoxGeometry(2,1,4),
-  new THREE.MeshStandardMaterial({color:0xaa0000})
+  carMat
 );
 car.position.set(0,0.5,0);
 scene.add(car);
@@ -118,9 +119,12 @@ joy.addEventListener("touchmove",e=>{
   const d=Math.min(50,Math.hypot(x,y));
   const a=Math.atan2(y,x);
   stick.style.transform=`translate(${Math.cos(a)*d}px,${Math.sin(a)*d}px)`;
-  moveX=Math.cos(a)*0.08;
-  moveZ=Math.sin(a)*0.08;
+
+  // تصحيح الاتجاه (الإحساس الطبيعي)
+  moveX =  Math.cos(a)*0.08;
+  moveZ = -Math.sin(a)*0.08;
 });
+
 joy.addEventListener("touchend",()=>{
   stick.style.transform="translate(0,0)";
   moveX=moveZ=0;
@@ -130,6 +134,9 @@ joy.addEventListener("touchend",()=>{
 document.getElementById("interact").onclick=()=>{
   if(player.position.distanceTo(car.position)<2.5){
     repairMode=!repairMode;
+
+    // تغيير لون السيارة كدليل بصري
+    carMat.color.set(repairMode ? 0x00ff00 : 0xaa0000);
   }
 };
 
@@ -142,7 +149,6 @@ window.addEventListener("touchstart",e=>{
     lastX=e.touches[0].clientX;
   }
 });
-
 window.addEventListener("touchmove",e=>{
   if(lastX!==null){
     const x=e.touches[0].clientX;
@@ -150,10 +156,7 @@ window.addEventListener("touchmove",e=>{
     lastX=x;
   }
 });
-
-window.addEventListener("touchend",()=>{
-  lastX=null;
-});
+window.addEventListener("touchend",()=>lastX=null);
 
 /* ===== Loop ===== */
 function animate(){
@@ -170,7 +173,12 @@ function animate(){
     );
     camera.lookAt(player.position);
   }else{
-    camera.position.set(car.position.x,car.position.y+1.8,car.position.z+2);
+    // كاميرا تصليح واضحة
+    camera.position.set(
+      car.position.x,
+      car.position.y+2,
+      car.position.z+3
+    );
     camera.lookAt(car.position);
   }
 
